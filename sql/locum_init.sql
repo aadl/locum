@@ -1,14 +1,14 @@
-/*
-You need to put something like this in your my.cnf file under [mysqld] :
+--
+-- You need to put something like this in your my.cnf file under [mysqld] :
+-- 
+-- max_heap_table_size     = 200M
+-- init_file               = /path/to/locum_init.sql
+-- 
 
-max_heap_table_size     = 200M
-init_file               = /path/to/locum_init.sql
-*/
-
-/* Change this to whatever your DB name is */
+-- Change this to whatever your DB name is
 USE scas;
 
-/* No need to change anything below here */
+-- No need to change anything below here
 DROP TABLE IF EXISTS locum_facet_heap;
 CREATE TABLE locum_facet_heap ENGINE=MEMORY SELECT bnum, series, mat_code, loc_code, lang, pub_year, bib_lastupdate FROM locum_bib_items WHERE active = '1';
 ALTER TABLE locum_facet_heap ADD PRIMARY KEY (bnum);
