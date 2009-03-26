@@ -290,6 +290,19 @@ class locum_client extends locum {
 			return $result;
 		}
 	}
+	
+	// part of handling multi-branch holds
+	public function get_bib_numbers($limit = 10) {
+		$db =& MDB2::connect($this->dsn);
+		$res =& $db->query("SELECT bnum FROM locum_bib_items LIMIT $limit");
+		$item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
+		$db->disconnect();
+		$bnums = array();
+		foreach ($item_arr as $item) {
+			$bnums[] = $item[bnum];
+		}
+		return $bnums;
+	}
 
 	/**
 	 * Returns an array of item status info (availability, location, status, etc).

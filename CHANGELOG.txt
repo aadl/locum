@@ -1,0 +1,5 @@
+Sid_M: committed 3/26/2009
+
+locum-client.php:
+
+  --added get_bib_numbers used when setting up branch options for holds
