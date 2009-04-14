@@ -24,6 +24,10 @@ class locum {
 	 * This function prepares Locum for activity.
 	 */
 	public function __construct() {
+		if (function_exists('locum_constructor_override')) {
+		  locum_constructor_override($this);
+		  return;
+		}
 		
 		ini_set('memory_limit','128M');
 		$this->locum_config = parse_ini_file('config/locum.ini', true);

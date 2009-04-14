@@ -1,3 +1,10 @@
+Sid_M: committed 4/14/2009
+
+locum-client.php:
+  --modified __construct so it calls locum_constructor_override() if it exists. Allows modification of class on instantiation.
+
+--
+
 Sid_M: committed 3/26/2009
 
 locum-client.php:
