@@ -381,13 +381,13 @@ class locum_server extends locum {
 	 */
 	public function get_syndetic_image($stdnum, $cust_id) {
 		$image_url = '';
-		$url = 'http://syndetics.com/index.aspx?isbn=' . $stdnum . '/index.xml&client=' . $cust_id . '&type=xw10';
+		$url = 'http://www.syndetics.com/index.aspx?isbn=' . $stdnum . '/index.xml&client=' . $cust_id . '&type=xw10';
 		$syn_dl = @file_get_contents($url);
 		list($version, $status_code, $msg) = explode(' ', $http_response_header[0], 3);
 		if (preg_match('/xml/', $syn_dl) && $status_code == '200') {
 			$syn = simplexml_load_string($syn_dl);
 			if ($syn->SC == 'SC.GIF') {
-				$image_url = 'http://syndetics.com/hw7.pl?isbn=' . $stdnum . '/SC.GIF&client=' . $cust_id;
+				$image_url = 'http://www.syndetics.com/index.php?type=hw7&isbn=' . $stdnum . '/SC.GIF&client=' . $cust_id;
 				$img_size = @getimagesize($image_url);
 				if ($img_size[0] == 1) { $image_url = ''; }
 			}

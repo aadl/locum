@@ -1,12 +1,17 @@
+--
+
 Sid_M: committed 4/14/2009
 
 locum-client.php:
   --modified __construct so it calls locum_constructor_override() if it exists. Allows modification of class on instantiation.
+
+locum-server.php
+  --added www. to syndetics urls
+  --switched from syndetics.com/hw7.pl to www.syndetics.com/index.php?type=hw7 since the former redirects to the latter
 
 --
 
 Sid_M: committed 3/26/2009
 
 locum-client.php:
-
   --added get_bib_numbers used when setting up branch options for holds
