@@ -483,7 +483,7 @@ class locum_client extends locum {
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
 		$html = curl_exec($ch);
 		curl_close($ch);
-		preg_match_all('/Did you mean: <\/font><a href=(.*?)class=p>(.*?)<\/a>/i', $html, $spelling1);
+		preg_match_all('/Did you mean.*?<a href=(.*?) .*?class=[\'"]*spell[\'"]*.*?>(.*?)<\/a>/i', $html, $spelling1);
 		preg_match_all('/See results for:(.*?)>(.*?)<\/a>/i', $html, $spelling2);
 
 		if (isset($spelling1[2][0])) {
