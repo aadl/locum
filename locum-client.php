@@ -30,7 +30,7 @@ class locum_client extends locum {
 	 */
 	public function search($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE) {
 		
-		require_once($this->locum_config[sphinx_config][api_path] . '/sphinxapi.php');
+		require_once($this->locum_config['sphinx_config']['api_path'] . '/sphinxapi.php');
 		$db =& MDB2::connect($this->dsn);
 		
 		$term_arr = explode('?', trim(preg_replace('/\//', ' ', $term)));
@@ -42,12 +42,12 @@ class locum_client extends locum {
 			$term_prestrip = $term;
 			$term = preg_replace('/[^A-Za-z0-9*\- ]/iD', '', $term);
 		}
-		$final_result_set[term] = $term;
-		$final_result_set[type] = trim($type);
+		$final_result_set['term'] = $term;
+		$final_result_set['type'] = trim($type);
 
 		$cl = new SphinxClient();
 		
-		$cl->SetServer($this->locum_config[sphinx_config][server_addr], (int) $this->locum_config[sphinx_config][server_port]);
+		$cl->SetServer($this->locum_config['sphinx_config']['server_addr'], (int) $this->locum_config['sphinx_config']['server_port']);
 
 		// As always, defaults to 'keyword'
 		$match_type = SPH_MATCH_ALL;
@@ -91,8 +91,8 @@ class locum_client extends locum {
 
 		// Filter out the records we don't want shown, per locum.ini
 		if (!$override_search_filter) {
-			if (trim($this->locum_config[location_limits][no_search])) {
-				$cfg_filter_arr = parent::csv_parser($this->locum_config[location_limits][no_search]);
+			if (trim($this->locum_config['location_limits']['no_search'])) {
+				$cfg_filter_arr = parent::csv_parser($this->locum_config['location_limits']['no_search']);
 				foreach ($cfg_filter_arr as $cfg_filter) {
 					$cfg_filter_vals[] = crc32($cfg_filter);
 				}
@@ -172,20 +172,20 @@ class locum_client extends locum {
 		$sph_res = $cl->Query($term, $idx);
 
 		// Include descriptors
-		$final_result_set[num_hits] = $sph_res[total];
-		if ($sph_res[total] <= $this->locum_config[api_config][suggestion_threshold]) {
-			if ($this->locum_config[api_config][use_google_suggest] == TRUE) {
-				$final_result_set[suggestion] = self::google_suggest($term_prestrip);
+		$final_result_set['num_hits'] = $sph_res['total'];
+		if ($sph_res['total'] <= $this->locum_config['api_config']['suggestion_threshold']) {
+			if ($this->locum_config['api_config']['use_google_suggest'] == TRUE) {
+				$final_result_set['suggestion'] = self::google_suggest($term_prestrip);
 			}
 		}
 		
-		if (is_array($sph_res[matches])) {
-			foreach ($sph_res[matches] as $bnum => $attr) {
+		if (is_array($sph_res['matches'])) {
+			foreach ($sph_res['matches'] as $bnum => $attr) {
 				$bib_hits[] = $bnum;
 			}
 		}
-		if (is_array($sph_res_all[matches])) {
-			foreach ($sph_res_all[matches] as $bnum => $attr) {
+		if (is_array($sph_res_all['matches'])) {
+			foreach ($sph_res_all['matches'] as $bnum => $attr) {
 				$bib_hits_all[] = $bnum;
 			}
 		}
@@ -195,10 +195,10 @@ class locum_client extends locum {
 			$where = '';
 
 			// Series
-			if ($facet_args[facet_series]) {
+			if ($facet_args['facet_series']) {
 				$where .= ' AND (';
 				$or = '';
-				foreach ($facet_args[facet_series] as $series) {
+				foreach ($facet_args['facet_series'] as $series) {
 					$where .= $or . ' series LIKE \'' . $db->escape($series, 'text') . '%\'';
 					$or = ' OR';
 				}
@@ -206,15 +206,15 @@ class locum_client extends locum {
 			}
 
 			// Language
-			if ($facet_args[facet_lang]) {
-				foreach ($facet_args[facet_lang] as $lang) {
+			if ($facet_args['facet_lang']) {
+				foreach ($facet_args['facet_lang'] as $lang) {
 					$lang_arr[] = $db->quote($lang, 'text');
 				}
 				$where .= ' AND lang IN (' . implode(', ', $lang_arr) . ')';
 			}
 			// Pub. Year
-			if ($facet_args[facet_year]) {
-				$where .= ' AND pub_year IN (' . implode(', ', $facet_args[facet_year]) . ')';
+			if ($facet_args['facet_year']) {
+				$where .= ' AND pub_year IN (' . implode(', ', $facet_args['facet_year']) . ')';
 			}
 			
 			$sql1 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where;
@@ -225,30 +225,30 @@ class locum_client extends locum {
 			$facet_total = count($bib_hits_all);
 			$init_result =& $db->query($sql2);
 			$bib_hits = $init_result->fetchCol();
-			$final_result_set[num_hits] = $facet_total;
+			$final_result_set['num_hits'] = $facet_total;
 		}
 
 		// First, we have to get the values back, unsorted against the Sphinx-sorted array
-		if ($final_result_set[num_hits] > 0) {
+		if ($final_result_set['num_hits'] > 0) {
 			$sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bib_hits) . ')';
 
 			$init_result =& $db->query($sql);
 			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
 			foreach ($init_bib_arr as $init_bib) {
-				$bib_reference_arr[(string) $init_bib[bnum]] = $init_bib;
+				$bib_reference_arr[(string) $init_bib['bnum']] = $init_bib;
 			}
 
 			// Now we reconcile against the sphinx result
-			foreach ($sph_res_all[matches] as $sph_bnum => $sph_binfo) {
+			foreach ($sph_res_all['matches'] as $sph_bnum => $sph_binfo) {
 				if (in_array($sph_bnum, $bib_hits)) {
-					$final_result_set[results][] = $bib_reference_arr[$sph_bnum];
+					$final_result_set['results'][] = $bib_reference_arr[$sph_bnum];
 				}
 			}
 
 		}
 		
 		$db->disconnect();
-		$final_result_set[facets] = self::facetizer($bib_hits_all);
+		$final_result_set['facets'] = self::facetizer($bib_hits_all);
 		
 		return $final_result_set;
 
@@ -272,11 +272,11 @@ class locum_client extends locum {
 			$where_str = substr($where_str, 0, -1) . ') ';
 			
 
-			$sql[mat] = 'SELECT DISTINCT mat_code, COUNT(mat_code) AS mat_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY mat_code ORDER BY mat_code_sum DESC';
-			$sql[series] = 'SELECT DISTINCT series, COUNT(series) AS series_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY series ORDER BY series ASC';
-			$sql[loc] = 'SELECT DISTINCT loc_code, COUNT(loc_code) AS loc_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY loc_code ORDER BY loc_code_sum DESC';
-			$sql[lang] = 'SELECT DISTINCT lang, COUNT(lang) AS lang_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY lang ORDER BY lang_sum DESC';
-			$sql[pub_year] = 'SELECT DISTINCT pub_year, COUNT(pub_year) AS pub_year_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY pub_year ORDER BY pub_year DESC';
+			$sql['mat'] = 'SELECT DISTINCT mat_code, COUNT(mat_code) AS mat_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY mat_code ORDER BY mat_code_sum DESC';
+			$sql['series'] = 'SELECT DISTINCT series, COUNT(series) AS series_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY series ORDER BY series ASC';
+			$sql['loc'] = 'SELECT DISTINCT loc_code, COUNT(loc_code) AS loc_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY loc_code ORDER BY loc_code_sum DESC';
+			$sql['lang'] = 'SELECT DISTINCT lang, COUNT(lang) AS lang_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY lang ORDER BY lang_sum DESC';
+			$sql['pub_year'] = 'SELECT DISTINCT pub_year, COUNT(pub_year) AS pub_year_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY pub_year ORDER BY pub_year DESC';
 //			$sql[subj] = 'SELECT DISTINCT subjects, COUNT(subjects) AS subjects_sum FROM bib_items_subject ' . $where_str . 'GROUP BY subjects ORDER BY subjects ASC';
 
 			foreach ($sql AS $fkey => $fquery) {
@@ -299,7 +299,7 @@ class locum_client extends locum {
 		$db->disconnect();
 		$bnums = array();
 		foreach ($item_arr as $item) {
-			$bnums[] = $item[bnum];
+			$bnums[] = $item['bnum'];
 		}
 		return $bnums;
 	}
@@ -343,7 +343,7 @@ class locum_client extends locum {
 			$item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
 			$db->disconnect();
 			foreach ($item_arr as $item) {
-				$bib[(string) $item[bnum]] = $item;
+				$bib[(string) $item['bnum']] = $item;
 			}
 		}
 		return $bib;
@@ -422,7 +422,7 @@ class locum_client extends locum {
 	 */
 	public function place_hold($cardnum, $bnum, $varname = NULL, $pin = NULL, $pickup_loc = NULL) {
 		$request_status = $this->locum_cntl->place_hold($cardnum, $bnum, $varname, $pin, $pickup_loc);
-		if ($request_status[success]) {
+		if ($request_status['success']) {
 			$db =& MDB2::connect($this->dsn);
 			$db->query("INSERT INTO locum_holds_placed VALUES ('$bnum', NOW())");
 		}

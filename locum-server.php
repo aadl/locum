@@ -27,10 +27,10 @@ class locum_server extends locum {
 		
 		if ($start > $end) { return 0; }
 
-		$num_children = $this->locum_config[harvest_config][max_children];
+		$num_children = $this->locum_config['harvest_config']['max_children'];
 		$num_to_process = $end - $start;
 		$increment = ceil($num_to_process / $num_children);
-		if (extension_loaded('pcntl') && $this->locum_config[harvest_config][harvest_with_children] && ($num_to_process >= (2 * $num_children))) {
+		if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
 			for ($i = 0; $i < $num_children; ++$i) {
 				$end = $start + ($increment - 1);
 				$new_start = $end + 1;
@@ -44,7 +44,7 @@ class locum_server extends locum {
 						++$i;
 						if ($i == $num_children) { $end++; }
 						$result = self::import_bibs($start, $end);
-						parent::putlog("Child process complete.  Scanned records $start - $end.  Imported $result[imported] reords and skipped $result[skipped] ..", 2);
+						parent::putlog("Child process complete.  Scanned records $start - $end.  Imported " . $result['imported'] . " records and skipped $result[skipped] ..", 2);
 						exit($i);
 					}
 				} else {
@@ -78,21 +78,21 @@ class locum_server extends locum {
 
 		$db =& MDB2::connect($this->dsn);
 
-		$process_report[skipped] = 0;
-		$process_report[imported] = 0;
+		$process_report['skipped'] = 0;
+		$process_report['imported'] = 0;
 
 		for ($i = $start; $i <= $end; $i++) {
 			$bib = $this->locum_cntl->scrape_bib($i);
 
 			if ($bib == FALSE) {
-				$process_report[skipped]++;
+				$process_report['skipped']++;
 			} else {
 				$subj = array_pop($bib);
 				$valid_vals = array('bnum', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'lccn', 'descr', 'notes', 'subjects_ser', 'lang', 'loc_code', 'mat_code', 'cover_img', 'bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs');
 				foreach ($bib as $bkey => $bval) {
 					if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
 				}
-				$bib_values[subjects_ser] = serialize($subj);
+				$bib_values['subjects_ser'] = serialize($subj);
 				$types = array('integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'date', 'date', 'date', 'integer');
 
 				$sql_prep = $db->prepare('INSERT INTO locum_bib_items VALUES (:bnum, :author, :addl_author, :title, :title_medium, :edition, :series, :callnum, :pub_info, :pub_year, :stdnum, :lccn, :descr, :notes, :subjects_ser, :lang, :loc_code, :mat_code, :cover_img, NOW(), :bib_created, :bib_lastupdate, :bib_prevupdate, :bib_revs, \'1\')');
@@ -101,14 +101,14 @@ class locum_server extends locum {
 
 				if (is_array($subj) && count($subj)) {
 					foreach ($subj as $subj_heading) {
-						$insert_data = array($bib[bnum], $subj_heading);
+						$insert_data = array($bib['bnum'], $subj_heading);
 						$types = array('integer', 'text');
 						$sql_prep = $db->prepare('INSERT INTO locum_bib_items_subject VALUES (?, ?)', $types, MDB2_PREPARE_MANIP);
 						$affrows = $sql_prep->execute($insert_data);
 						$sql_prep->free();
 					}
 				}
-				$process_report[imported]++;
+				$process_report['imported']++;
 			}
 		}
 		$db->disconnect();
@@ -127,15 +127,15 @@ class locum_server extends locum {
 		$sql = 'SELECT bnum, bib_lastupdate FROM locum_facet_heap';
 		$init_result =& $db->query($sql);
 		$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-		$num_children = $this->locum_config[harvest_config][max_children];
+		$num_children = $this->locum_config['harvest_config']['max_children'];
 		$num_to_process = count($init_bib_arr);
 		foreach ($init_bib_arr as $init_bib_arr_vals) {
-			$bib_arr[$init_bib_arr_vals[bnum]] = $init_bib_arr_vals[bib_lastupdate];
+			$bib_arr[$init_bib_arr_vals['bnum']] = $init_bib_arr_vals['bib_lastupdate'];
 		}
 		$db->disconnect();
 		parent::putlog("Finished collecting data keys.");
 
-		if (extension_loaded('pcntl') && $this->locum_config[harvest_config][harvest_with_children] && ($num_to_process >= (2 * $num_children))) {
+		if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
 			
 			$increment = ceil($num_to_process / $num_children);
 
@@ -155,8 +155,8 @@ class locum_server extends locum {
 						$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
 						$num_bibs = count($bib_arr_sliced);
 						$tmp = self::update_bib($bib_arr_sliced);
-						$updated = $tmp[updated];
-						$retired = $tmp[retired];
+						$updated = $tmp['updated'];
+						$retired = $tmp['retired'];
 						parent::putlog("Child process complete.  Checked $num_bibs records, updated $updated records, retired $retired records.", 2);
 						exit($i);
 					}
@@ -205,14 +205,14 @@ class locum_server extends locum {
 				$sql_prep->execute(array($bnum));
 				$sql_prep->free();
 				$retired++;
-			} else if ($bib[bnum] && $bib[bib_lastupdate] != $init_bib_date) {
+			} else if ($bib['bnum'] && $bib['bib_lastupdate'] != $init_bib_date) {
 				$subj = array_pop($bib);
 				$valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'lccn', 'descr', 'notes', 'bnum');
 				foreach ($bib as $bkey => $bval) {
 					if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
 				}
 				
-				$bib_values[subjects_ser] = serialize($subj);
+				$bib_values['subjects_ser'] = serialize($subj);
 			
 				$types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'text', 'text', 'text', 'integer');
 		
@@ -273,7 +273,7 @@ class locum_server extends locum {
 		$max_bib_result =& $db->query($sql);
 		$max_bib = $max_bib_result->fetchOne();
 		$next_bib = $max_bib + 1;
-		$last_bib = $next_bib + $this->locum_config[harvest_config][harvest_reach];
+		$last_bib = $next_bib + $this->locum_config['harvest_config']['harvest_reach'];
 		$db->disconnect();
 		self::harvest_bibs($next_bib, $last_bib);
 	}
@@ -298,7 +298,7 @@ class locum_server extends locum {
 			$dbq =& $db->query(${'sql_' . $count_type});
 			$result_arr = $dbq->fetchAll(MDB2_FETCHMODE_ASSOC);
 			foreach ($result_arr as $result) {
-				$db->query('UPDATE locum_holds_count SET hold_count_' . $count_type . ' = ' . $result[total] . ' WHERE bnum = ' . $result[bnum]);
+				$db->query('UPDATE locum_holds_count SET hold_count_' . $count_type . ' = ' . $result['total'] . ' WHERE bnum = ' . $result['bnum']);
 			}
 		}
 	}
@@ -325,21 +325,21 @@ class locum_server extends locum {
 		} else {
 			$stdnum = trim($stdnum_raw);
 		}
-		$api_cfg = $this->locum_config[api_config];
+		$api_cfg = $this->locum_config['api_config'];
 		$image_url = '';
-		if ($api_cfg[use_amazon_images] && $api_cfg[use_syndetic_images]) {
-			if ($api_cfg[amazon_img_prio] >= $api_cfg[syndetic_img_prio]) {
-				$image_url = self::get_amazon_image($stdnum, $api_cfg[amazon_access_key]);
-				if (!$image_url) { $image_url = self::get_syndetic_image($stdnum, $api_cfg[syndetic_custid]); }
+		if ($api_cfg['use_amazon_images'] && $api_cfg['use_syndetic_images']) {
+			if ($api_cfg['amazon_img_prio'] >= $api_cfg['syndetic_img_prio']) {
+				$image_url = self::get_amazon_image($stdnum, $api_cfg['amazon_access_key']);
+				if (!$image_url) { $image_url = self::get_syndetic_image($stdnum, $api_cfg['syndetic_custid']); }
 			} else {
-				$image_url = self::get_syndetic_image($stdnum, $api_cfg[syndetic_custid]);
-				if (!$image_url) { $image_url = self::get_amazon_image($stdnum, $api_cfg[amazon_access_key]); }
+				$image_url = self::get_syndetic_image($stdnum, $api_cfg['syndetic_custid']);
+				if (!$image_url) { $image_url = self::get_amazon_image($stdnum, $api_cfg['amazon_access_key']); }
 
 			}
-		} else if ($api_cfg[use_amazon_images]) {
-			$image_url = self::get_amazon_image($stdnum, $api_cfg[amazon_access_key]);
-		} else if ($api_cfg[use_syndetic_images]) {
-			$image_url = self::get_syndetic_image($stdnum, $api_cfg[syndetic_custid]);
+		} else if ($api_cfg['use_amazon_images']) {
+			$image_url = self::get_amazon_image($stdnum, $api_cfg['amazon_access_key']);
+		} else if ($api_cfg['use_syndetic_images']) {
+			$image_url = self::get_syndetic_image($stdnum, $api_cfg['syndetic_custid']);
 		}
 		return $image_url;
 	}

@@ -34,15 +34,15 @@ class locum {
 
 		// Take care of requirements
 		require_once('MDB2.php');
-		require($this->locum_config[locum_config][dsn_file]);
+		require($this->locum_config['locum_config']['dsn_file']);
 		$this->dsn = $dsn;
 		$connector_type = 'locum_'
-			. $this->locum_config[ils_config][ils] . '_'
-			. $this->locum_config[ils_config][ils_version];
+			. $this->locum_config['ils_config']['ils'] . '_'
+			. $this->locum_config['ils_config']['ils_version'];
 		require_once('connectors/' . $connector_type . '/' . $connector_type . '.php');
 
 		// Fire up the Locum connector
-		$locum_class_name = 'locum_' . $this->locum_config[ils_config][ils] . '_' . $this->locum_config[ils_config][ils_version];
+		$locum_class_name = 'locum_' . $this->locum_config['ils_config']['ils'] . '_' . $this->locum_config['ils_config']['ils_version'];
 		$this->locum_cntl =& new $locum_class_name;
 		$this->locum_cntl->locum_config = $this->locum_config;
 	}
@@ -57,8 +57,8 @@ class locum {
 	 */
 	public function putlog($msg, $severity = 1, $silent = TRUE) {
 		if ($severity > 5) { $severity = 5; }
-		$logfile = $this->locum_config[locum_config][log_file];
-		$quiet = $this->locum_config[locum_config][run_quiet];
+		$logfile = $this->locum_config['locum_config']['log_file'];
+		$quiet = $this->locum_config['locum_config']['run_quiet'];
 
 		for ($i = 0; $i < $severity; $i++) { $indicator .= '*'; }
 		$indicator = '[' . str_pad($indicator, 5) . ']';
