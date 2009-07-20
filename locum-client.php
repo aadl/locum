@@ -230,7 +230,7 @@ class locum_client extends locum {
 
 		// First, we have to get the values back, unsorted against the Sphinx-sorted array
 		if ($final_result_set['num_hits'] > 0) {
-			$sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bib_hits) . ')';
+			$sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bib_hits) . ') ORDER BY FIELD(bnum, ' . implode(', ', $bib_hits) . ')';
 
 			$init_result =& $db->query($sql);
 			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
