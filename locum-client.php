@@ -371,6 +371,29 @@ class locum_client extends locum {
 		$patron_checkouts = $this->locum_cntl->patron_checkouts($cardnum, $pin);
 		return $patron_checkouts;
 	}
+
+	/**
+	 * Returns an array of patron checkouts for history
+	 *
+	 * @param string $cardnum Patron barcode/card number
+	 * @param string $pin Patron pin/password
+	 * @return boolean|array Array of patron checkouts or FALSE if $barcode doesn't exist
+	 */
+	public function get_patron_checkout_history($cardnum, $pin = NULL) {
+		$patron_checkout_history = $this->locum_cntl->patron_checkout_history($cardnum, $pin);
+		return $patron_checkout_history;
+	}
+	/**
+	 * Opts patron in or out of checkout history
+	 *
+	 * @param string $cardnum Patron barcode/card number
+	 * @param string $pin Patron pin/password
+	 * @return boolean|array Array of patron checkouts or FALSE if $barcode doesn't exist
+	 */
+	public function set_patron_checkout_history($cardnum, $pin = NULL, $action) {
+		$success = $this->locum_cntl->patron_checkout_history_toggle($cardnum, $pin, $action);
+		return $success;
+	}
 	
 	/**
 	 * Returns an array of patron holds
@@ -409,6 +432,20 @@ class locum_client extends locum {
 		$cancel_status = $this->locum_cntl->cancel_holds($cardnum, $pin, $items);
 		return $cancel_status;
 	}
+	// <CraftySpace+>
+	/**
+	 * Places or removes freezes on holds
+	 *
+	 * @param string $cardnum Patron barcode/card number
+	 * @param string $pin Patron pin/password
+	 * @param array $holdfreezes_to_update Array of bnum => new status.
+	 * @return boolean TRUE or FALSE if it cannot cancel for some reason
+	 */
+	public function update_holdfreezes($cardnum, $pin, $holdfreezes_to_update) {
+		$update_status = $this->locum_cntl->update_holdfreezes($cardnum, $pin, $holdfreezes_to_update);
+		return $update_status;
+	}
+	// </CraftySpace+>
 	
 	/**
 	 * Places holds

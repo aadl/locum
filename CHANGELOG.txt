@@ -1,5 +1,15 @@
 --
 
+Sid_M committed 7/29/2009
+
+  locum-client.php:
+  
+    Added the following to support checkout history: get_patron_checkout_history() and set_patron_checkout_history()
+
+    Added the following to support freezing holds: locum-client.php: added update_holdfreezes()
+
+--
+
 Sid_M committed 6/25/2009
 
   --modified google_suggest, updating preg to account for change in how google presents suggestions.
