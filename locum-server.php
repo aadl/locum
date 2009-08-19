@@ -191,6 +191,7 @@ class locum_server extends locum {
 		$db = MDB2::connect($this->dsn);
 		$updated = 0;
 		$retired = 0;
+		$skipped = 0;
 
 		foreach ($bib_arr as $bnum => $init_bib_date) {
 
@@ -205,6 +206,9 @@ class locum_server extends locum {
 				$sql_prep->execute(array($bnum));
 				$sql_prep->free();
 				$retired++;
+			} else if ($bib == 'skip') {
+				// Do nothing.  This might happen if the ILS server is down.
+				$skipped++;
 			} else if ($bib['bnum'] && $bib['bib_lastupdate'] != $init_bib_date) {
 				$subj = array_pop($bib);
 				$valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'lccn', 'descr', 'notes', 'bnum');
