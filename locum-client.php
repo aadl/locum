@@ -174,8 +174,8 @@ class locum_client extends locum {
 		// Include descriptors
 		$final_result_set['num_hits'] = $sph_res['total'];
 		if ($sph_res['total'] <= $this->locum_config['api_config']['suggestion_threshold']) {
-			if ($this->locum_config['api_config']['use_google_suggest'] == TRUE) {
-				$final_result_set['suggestion'] = self::google_suggest($term_prestrip);
+			if ($this->locum_config['api_config']['use_yahoo_suggest'] == TRUE) {
+				$final_result_set['suggestion'] = self::yahoo_suggest($term_prestrip);
 			}
 		}
 		
@@ -511,22 +511,17 @@ class locum_client extends locum {
 	 * @param string $str String to check
 	 * @return string|boolean Either returns a string suggestion or FALSE
 	 */
-	public function google_suggest($str) {
-		$str_array = explode( ' ', $str );
-		$words = implode( '+', $str_array );
-		$ch = curl_init();
-		$url = "http://www.google.com/search?q=" . $words;
-		curl_setopt($ch, CURLOPT_URL, $url);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-		$html = curl_exec($ch);
-		curl_close($ch);
-		preg_match_all('/Did you mean.*?<a href=(.*?) .*?class=[\'"]*spell[\'"]*.*?>(.*?)<\/a>/i', $html, $spelling1);
-		preg_match_all('/See results for:(.*?)>(.*?)<\/a>/i', $html, $spelling2);
+	public function yahoo_suggest($str) {
+		if (trim($str) && $this->locum_config['api_config']['yahh_app_id']) {
+			$appid = $this->locum_config['api_config']['yahh_app_id'];
+		} else {
+			$appid = 'YahooDemo';
+		}
+		$url = 'http://search.yahooapis.com/WebSearchService/V1/spellingSuggestion?appid=' . $appid . '&query=' . $str;
+		$suggest_obj = simplexml_load_file($url);
 
-		if (isset($spelling1[2][0])) {
-			return strip_tags($spelling1[2][0]);
-		} else if (isset($spelling2[2][0])) {
-			return strip_tags($spelling2[2][0]);
+		if (trim($suggest_obj->Result)) {
+			return trim($suggest_obj->Result);
 		} else {
 			return FALSE;
 		}
