@@ -108,6 +108,14 @@ class locum_server extends locum {
 						$sql_prep->free();
 					}
 				}
+
+				$status = $this->locum_cntl->item_status($bib['bnum']);
+				if (count($status[locations])) {
+					foreach ($status['locations'] as $location) {
+						$db->query('INSERT INTO locum_bib_items_loc VALUES ("' . $bib['bnum'] . '", "' . $location . '")');
+					}
+				}
+				
 				$process_report['imported']++;
 			}
 		}
@@ -199,6 +207,7 @@ class locum_server extends locum {
 
 
 			if ($bib == FALSE) {
+				// Weed this record
 				// TODO add a verification of weed in here somehow
 				$sql_prep =& $db->prepare('UPDATE locum_bib_items SET active = ? WHERE bnum = ?', array('text', 'integer'));
 				$sql_prep->execute(array('0', $bnum));
@@ -259,6 +268,15 @@ class locum_server extends locum {
 						$sql_prep->free();
 					}
 				}
+				
+				$db->query('DELETE FROM locum_bib_items_loc WHERE bnum = "' . $bib['bnum']. '"');
+				$status = $this->locum_cntl->item_status($bib['bnum']);
+				if (count($status['locations'])) {
+					foreach ($status['locations'] as $location) {
+						$db->query('INSERT INTO locum_bib_items_loc VALUES ("' . $bib['bnum'] . '", "' . $location . '")');
+					}
+				}
+				
 				parent::putlog("Updated record # $bnum", 2, TRUE);
 				$updated++;
 			}

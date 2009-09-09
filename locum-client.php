@@ -157,7 +157,6 @@ class locum_client extends locum {
 					$filter_arr_loc[] = crc32(trim($location));
 				}
 			}
-			print_r($foo);
 			if (count($filter_arr_loc)) { $cl->SetFilter('loc_code', $filter_arr_loc); }
 		}
 
@@ -518,7 +517,7 @@ class locum_client extends locum {
 			$appid = 'YahooDemo';
 		}
 		$url = 'http://search.yahooapis.com/WebSearchService/V1/spellingSuggestion?appid=' . $appid . '&query=' . $str;
-		$suggest_obj = simplexml_load_file($url);
+		$suggest_obj = @simplexml_load_file($url);
 
 		if (trim($suggest_obj->Result)) {
 			return trim($suggest_obj->Result);
