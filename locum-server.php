@@ -80,43 +80,43 @@ class locum_server extends locum {
 
 		$process_report['skipped'] = 0;
 		$process_report['imported'] = 0;
+		$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+		$utfprep = $db->query($utf);
 
 		for ($i = $start; $i <= $end; $i++) {
-			$bib = $this->locum_cntl->scrape_bib($i);
+			$sql = "SELECT bnum FROM locum_bib_items WHERE bnum = $i";
+			$init_result = $db->query($sql);
+			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+			if(empty($init_bib_arr)) {
+				$bib = $this->locum_cntl->scrape_bib($i);
 
-			if ($bib == FALSE) {
-				$process_report['skipped']++;
-			} else {
-				$subj = array_pop($bib);
-				$valid_vals = array('bnum', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'lccn', 'descr', 'notes', 'subjects_ser', 'lang', 'loc_code', 'mat_code', 'cover_img', 'bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs');
-				foreach ($bib as $bkey => $bval) {
-					if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
-				}
-				$bib_values['subjects_ser'] = serialize($subj);
-				$types = array('integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'date', 'date', 'date', 'integer');
-
-				$sql_prep = $db->prepare('INSERT INTO locum_bib_items VALUES (:bnum, :author, :addl_author, :title, :title_medium, :edition, :series, :callnum, :pub_info, :pub_year, :stdnum, :lccn, :descr, :notes, :subjects_ser, :lang, :loc_code, :mat_code, :cover_img, NOW(), :bib_created, :bib_lastupdate, :bib_prevupdate, :bib_revs, \'1\')');
-				$affrows = $sql_prep->execute($bib_values);
-				$sql_prep->free();
-
-				if (is_array($subj) && count($subj)) {
-					foreach ($subj as $subj_heading) {
-						$insert_data = array($bib['bnum'], $subj_heading);
-						$types = array('integer', 'text');
-						$sql_prep = $db->prepare('INSERT INTO locum_bib_items_subject VALUES (?, ?)', $types, MDB2_PREPARE_MANIP);
-						$affrows = $sql_prep->execute($insert_data);
-						$sql_prep->free();
+				if ($bib == FALSE) {
+					$process_report['skipped']++;
+				} else {
+					$subj = array_pop($bib);
+					$valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img');
+					foreach ($bib as $bkey => $bval) {
+						if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
 					}
-				}
+					$bib_values['subjects_ser'] = serialize($subj);
+					$types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer', 'text');
+					$sql_prep = $db->prepare('INSERT INTO locum_bib_items VALUES (:bnum, :author, :addl_author, :title, :title_medium, :edition, :series, :callnum, :pub_info, :pub_year, :stdnum, :upc, :lccn, :descr, :notes, :subjects_ser, :lang, :loc_code, :mat_code, :cover_img, NOW(), :bib_created, :bib_lastupdate, :bib_prevupdate, :bib_revs, \'1\')');
+					
+					$affrows = $sql_prep->execute($bib_values);
+					parent::putlog("Importing bib # $i - $bib[title]");
+					$sql_prep->free();
 
-				$status = $this->locum_cntl->item_status($bib['bnum']);
-				if (count($status[locations])) {
-					foreach ($status['locations'] as $location) {
-						$db->query('INSERT INTO locum_bib_items_loc VALUES ("' . $bib['bnum'] . '", "' . $location . '")');
+					if (is_array($subj) && count($subj)) {
+						foreach ($subj as $subj_heading) {
+							$insert_data = array($bib['bnum'], $subj_heading);
+							$types = array('integer', 'text');
+							$sql_prep = $db->prepare('INSERT INTO locum_bib_items_subject VALUES (?, ?)', $types, MDB2_PREPARE_MANIP);
+							$affrows = $sql_prep->execute($insert_data);
+							$sql_prep->free();
+						}
 					}
+					$process_report['imported']++;
 				}
-				
-				$process_report['imported']++;
 			}
 		}
 		$db->disconnect();
@@ -128,62 +128,149 @@ class locum_server extends locum {
 	 * 
 	 * @param boolean $quiet Run this function silently.  Default: TRUE
 	 */
-	public function verify_bibs($quiet = TRUE) {
+	public function verify_bibs($quiet = FALSE) {
+		$limit = 1000;
+		$offset = 0;
+		
+		parent::putlog("Collecting current data keys ..");
+		$db = MDB2::connect($this->dsn);
+		$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit";
+		$init_result = $db->query($sql);
+		$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+		
+		while(!empty($init_bib_arr)) {
+			$num_children = $this->locum_config[harvest_config][max_children];
+			$num_to_process = count($init_bib_arr);
+			$bib_arr = array();
+			foreach ($init_bib_arr as $init_bib_arr_vals) {
+				$bib_arr[$init_bib_arr_vals[bnum]] = $init_bib_arr_vals[bib_lastupdate];
+			}
+			$db->disconnect();
+			parent::putlog("Finished collecting data keys.");
+
+			if (extension_loaded('pcntl') && $this->locum_config[harvest_config][harvest_with_children] && ($num_to_process >= (2 * $num_children))) {
+			
+				$increment = ceil($num_to_process / $num_children);
+
+				$split_offset = 0;
+				for ($i = 0; $i < $num_children; ++$i) {
+					$end = $start + ($increment - 1);
+					$new_start = $end + 1;
+	
+					$pid = pcntl_fork();
+					if ($pid != -1) {
+						if ($pid) {
+							parent::putlog("Spawning child harvester to verify records of $start - $end. PID is $pid ..");
+						} else {
+							sleep(1);
+							++$i;
+							if ($i == $num_children) { $end++; }
+							$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
+							$num_bibs = count($bib_arr_sliced);
+							$tmp = self::update_bib($bib_arr_sliced);
+							$updated = $tmp[updated];
+							$retired = $tmp[retired];
+							parent::putlog("Child process complete.  Checked $num_bibs records, updated $updated records, retired $retired records.", 2);
+							exit($i);
+						}
+					} else {
+						parent::putlog("Unable to spawn harvester: ($i)", 5);
+					}
+					$start = $new_start;
+					$split_offset = $split_offset + $increment;
+				}
+				if ($pid) {
+					while ($i > 0) {
+						pcntl_waitpid(-1, &$status);
+						$val = pcntl_wexitstatus($status);
+						--$i;
+						}
+					parent::putlog("Verification complete!", 3);
+				}
+			} else {
+				// TODO - Bib verification for those poor saps w/o pcntl
+			}
+			
+			$offset = $offset + $limit;
+			parent::putlog("Collecting current data keys starting at $offset");
+			$db = MDB2::connect($this->dsn);
+			$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit OFFSET $offset";
+			$init_result = $db->query($sql);
+			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+		}
+	}
+
+	public function verify_status($quiet = TRUE) {
+		require_once('locum-client.php');
+		
+		$limit = 1000;
+		$offset = 0;
 
 		parent::putlog("Collecting current data keys ..");
-		$db =& MDB2::connect($this->dsn);
-		$sql = 'SELECT bnum, bib_lastupdate FROM locum_facet_heap';
-		$init_result =& $db->query($sql);
+		$db = MDB2::connect($this->dsn);
+		$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit";
+		$init_result = $db->query($sql);
 		$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-		$num_children = $this->locum_config['harvest_config']['max_children'];
-		$num_to_process = count($init_bib_arr);
-		foreach ($init_bib_arr as $init_bib_arr_vals) {
-			$bib_arr[$init_bib_arr_vals['bnum']] = $init_bib_arr_vals['bib_lastupdate'];
-		}
-		$db->disconnect();
-		parent::putlog("Finished collecting data keys.");
+		$locumclient = new locum_client;
+		
+		while(!empty($init_bib_arr)) {
+			$num_children = $this->locum_config[harvest_config][max_children];
+			$num_to_process = count($init_bib_arr);
+			$bib_arr = array();
+			foreach ($init_bib_arr as $init_bib_arr_vals) {
+				$bib_arr[$init_bib_arr_vals[bnum]] = $init_bib_arr_vals[bib_lastupdate];
+			}
+			$db->disconnect();
+			parent::putlog("Finished collecting data keys.");
 
-		if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
+			if (extension_loaded('pcntl') && $this->locum_config[harvest_config][harvest_with_children] && ($num_to_process >= (2 * $num_children))) {
 			
-			$increment = ceil($num_to_process / $num_children);
-
-			$split_offset = 0;
-			for ($i = 0; $i < $num_children; ++$i) {
-				$end = $start + ($increment - 1);
-				$new_start = $end + 1;
+				$increment = ceil($num_to_process / $num_children);
+			
+				$split_offset = 0;
+				for ($i = 0; $i < $num_children; ++$i) {
+					$end = $start + ($increment - 1);
+					$new_start = $end + 1;
 	
-				$pid = pcntl_fork();
-				if ($pid != -1) {
-					if ($pid) {
-						parent::putlog("Spawning child harvester to verify records. PID is $pid ..");
+					$pid = pcntl_fork();
+					if ($pid != -1) {
+						if ($pid) {
+							parent::putlog("Spawning child harvester to verify records. PID is $pid ..");
+						} else {
+							sleep(1);
+							++$i;
+							if ($i == $num_children) { $end++; }
+							$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
+							$num_bibs = count($bib_arr_sliced);
+							foreach ($bib_arr_sliced as $bnum => $init_bib_date) {
+								$locumclient->get_availability($bnum);
+							}
+							parent::putlog("Child process complete.  Checked $num_bibs records", 2);
+							exit($i);
+						}
 					} else {
-						sleep(1);
-						++$i;
-						if ($i == $num_children) { $end++; }
-						$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
-						$num_bibs = count($bib_arr_sliced);
-						$tmp = self::update_bib($bib_arr_sliced);
-						$updated = $tmp['updated'];
-						$retired = $tmp['retired'];
-						parent::putlog("Child process complete.  Checked $num_bibs records, updated $updated records, retired $retired records.", 2);
-						exit($i);
+						parent::putlog("Unable to spawn harvester: ($i)", 5);
 					}
-				} else {
-					parent::putlog("Unable to spawn harvester: ($i)", 5);
+					$start = $new_start;
+					$split_offset = $split_offset + $increment;
 				}
-				$start = $new_start;
-				$split_offset = $split_offset + $increment;
+				if ($pid) {
+					while ($i > 0) {
+						pcntl_waitpid(-1, &$status);
+						$val = pcntl_wexitstatus($status);
+						--$i;
+						}
+					parent::putlog("Verification complete!", 3);
+				}
+			} else {
+				// TODO - Bib verification for those poor saps w/o pcntl
 			}
-			if ($pid) {
-				while ($i > 0) {
-					pcntl_waitpid(-1, &$status);
-					$val = pcntl_wexitstatus($status);
-					--$i;
-					}
-				parent::putlog("Verification complete!", 3);
-			}
-		} else {
-			// TODO - Bib verification for those poor saps w/o pcntl
+			$offset = $offset + $limit;
+			parent::putlog("Collecting current data keys starting at $offset");
+			$db = MDB2::connect($this->dsn);
+			$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit OFFSET $offset";
+			$init_result = $db->query($sql);
+			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
 		}
 	}
 
@@ -202,9 +289,14 @@ class locum_server extends locum {
 		$skipped = 0;
 
 		foreach ($bib_arr as $bnum => $init_bib_date) {
+			if(!$firstbib) {
+				$firstbib = $bnum;
+			}
+			$lastbib = $bnum;
 
 			$bib = $this->locum_cntl->scrape_bib($bnum, TRUE);
-
+			$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+			$utfprep = $db->query($utf);
 
 			if ($bib == FALSE) {
 				// Weed this record
@@ -220,14 +312,14 @@ class locum_server extends locum {
 				$skipped++;
 			} else if ($bib['bnum'] && $bib['bib_lastupdate'] != $init_bib_date) {
 				$subj = array_pop($bib);
-				$valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'lccn', 'descr', 'notes', 'bnum');
+				$valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum');
 				foreach ($bib as $bkey => $bval) {
 					if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
 				}
 				
 				$bib_values['subjects_ser'] = serialize($subj);
 			
-				$types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'text', 'text', 'text', 'integer');
+				$types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer');
 		
 				$setlist = 
 					"bib_created = :bib_created, " .
@@ -247,6 +339,7 @@ class locum_server extends locum {
 					"pub_info = :pub_info, " .
 					"pub_year = :pub_year, " .
 					"stdnum = :stdnum, " .
+					"upc = :upc, " .
 					"lccn = :lccn, " .
 					"descr = :descr, " .
 					"notes = :notes, " .
@@ -277,11 +370,12 @@ class locum_server extends locum {
 					}
 				}
 				
-				parent::putlog("Updated record # $bnum", 2, TRUE);
+				parent::putlog("Updated record # $bnum - $bib[title]", 2, TRUE);
 				$updated++;
 			}
 		}
 		$db->disconnect();
+		parent::putlog("Processed $firstbib - $lastbib");
 		return array('retired' => $retired, 'updated' => $updated);
 	}
 
@@ -297,6 +391,7 @@ class locum_server extends locum {
 		$next_bib = $max_bib + 1;
 		$last_bib = $next_bib + $this->locum_config['harvest_config']['harvest_reach'];
 		$db->disconnect();
+		parent::putlog("Harvesting bibs # $next_bib - $last_bib", 2, TRUE);
 		self::harvest_bibs($next_bib, $last_bib);
 	}
 	
@@ -324,11 +419,15 @@ class locum_server extends locum {
 			}
 		}
 	}
-	
+
 	public function rebuild_facet_heap() {
 		$db = MDB2::connect($this->dsn);
-		$db->exec('DELETE FROM locum_facet_heap');
-		$db->exec('INSERT INTO locum_facet_heap SELECT bnum, series, mat_code, loc_code, lang, pub_year, bib_lastupdate FROM locum_bib_items WHERE active = \'1\'');
+		$db->exec("DELETE FROM locum_facet_heap");
+		$db->exec("INSERT INTO locum_facet_heap (bnum, series, mat_code, loc_code, lang, pub_year, pub_decade, bib_lastupdate, ages) " .
+			"SELECT locum_bib_items.bnum, series, mat_code, loc_code, lang, pub_year, TRUNCATE(pub_year/10,0)*10 AS pub_decade, bib_lastupdate, ages " .
+			"FROM locum_bib_items " .
+			"LEFT JOIN locum_availability on locum_bib_items.bnum = locum_availability.bnum " .
+			"WHERE active = '1'");
 	}
 
 	/**

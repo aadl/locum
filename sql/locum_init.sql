@@ -10,11 +10,13 @@ USE scas;
 
 -- No need to change anything below here
 DROP TABLE IF EXISTS locum_facet_heap;
-CREATE TABLE locum_facet_heap ENGINE=MEMORY SELECT bnum, series, mat_code, loc_code, lang, pub_year, bib_lastupdate FROM locum_bib_items WHERE active = '1';
+CREATE TABLE locum_facet_heap ENGINE=MEMORY SELECT bnum, series, mat_code, loc_code, lang, pub_year, pub_decade, bib_lastupdate, ages FROM locum_bib_items WHERE active = '1';
 ALTER TABLE locum_facet_heap ADD PRIMARY KEY (bnum);
 ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (series);
 ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (mat_code);
 ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (loc_code);
 ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (lang);
 ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (pub_year);
+ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (pub_decade);
 ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (bib_lastupdate);
+ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (ages);
