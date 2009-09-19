@@ -23,3 +23,10 @@ CREATE TABLE IF NOT EXISTS `locum_inum_to_bnum` (
 CURRENT_TIMESTAMP,
  PRIMARY KEY  (`inum`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `locum_syndetics_links` (
+`isbn` CHAR( 32 ) NOT NULL ,
+`links` CHAR( 254 ) NOT NULL ,
+`updated` TIMESTAMP NOT NULL ,
+PRIMARY KEY ( `isbn` )
+) ENGINE = MYISAM CHARACTER SET utf8 COLLATE utf8_general_ci COMMENT = 'Caches Syndetics content availability';

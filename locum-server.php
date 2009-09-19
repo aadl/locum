@@ -124,157 +124,6 @@ class locum_server extends locum {
 	}
 
 	/**
-	 * Scans existing imported bibs for changes or weeds and makes the appropriate changes.
-	 * 
-	 * @param boolean $quiet Run this function silently.  Default: TRUE
-	 */
-	public function verify_bibs($quiet = FALSE) {
-		$limit = 1000;
-		$offset = 0;
-		
-		parent::putlog("Collecting current data keys ..");
-		$db = MDB2::connect($this->dsn);
-		$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit";
-		$init_result = $db->query($sql);
-		$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-		
-		while(!empty($init_bib_arr)) {
-			$num_children = $this->locum_config[harvest_config][max_children];
-			$num_to_process = count($init_bib_arr);
-			$bib_arr = array();
-			foreach ($init_bib_arr as $init_bib_arr_vals) {
-				$bib_arr[$init_bib_arr_vals[bnum]] = $init_bib_arr_vals[bib_lastupdate];
-			}
-			$db->disconnect();
-			parent::putlog("Finished collecting data keys.");
-
-			if (extension_loaded('pcntl') && $this->locum_config[harvest_config][harvest_with_children] && ($num_to_process >= (2 * $num_children))) {
-			
-				$increment = ceil($num_to_process / $num_children);
-
-				$split_offset = 0;
-				for ($i = 0; $i < $num_children; ++$i) {
-					$end = $start + ($increment - 1);
-					$new_start = $end + 1;
-	
-					$pid = pcntl_fork();
-					if ($pid != -1) {
-						if ($pid) {
-							parent::putlog("Spawning child harvester to verify records of $start - $end. PID is $pid ..");
-						} else {
-							sleep(1);
-							++$i;
-							if ($i == $num_children) { $end++; }
-							$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
-							$num_bibs = count($bib_arr_sliced);
-							$tmp = self::update_bib($bib_arr_sliced);
-							$updated = $tmp[updated];
-							$retired = $tmp[retired];
-							parent::putlog("Child process complete.  Checked $num_bibs records, updated $updated records, retired $retired records.", 2);
-							exit($i);
-						}
-					} else {
-						parent::putlog("Unable to spawn harvester: ($i)", 5);
-					}
-					$start = $new_start;
-					$split_offset = $split_offset + $increment;
-				}
-				if ($pid) {
-					while ($i > 0) {
-						pcntl_waitpid(-1, &$status);
-						$val = pcntl_wexitstatus($status);
-						--$i;
-						}
-					parent::putlog("Verification complete!", 3);
-				}
-			} else {
-				// TODO - Bib verification for those poor saps w/o pcntl
-			}
-			
-			$offset = $offset + $limit;
-			parent::putlog("Collecting current data keys starting at $offset");
-			$db = MDB2::connect($this->dsn);
-			$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit OFFSET $offset";
-			$init_result = $db->query($sql);
-			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-		}
-	}
-
-	public function verify_status($quiet = TRUE) {
-		require_once('locum-client.php');
-		
-		$limit = 1000;
-		$offset = 0;
-
-		parent::putlog("Collecting current data keys ..");
-		$db = MDB2::connect($this->dsn);
-		$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit";
-		$init_result = $db->query($sql);
-		$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-		$locumclient = new locum_client;
-		
-		while(!empty($init_bib_arr)) {
-			$num_children = $this->locum_config[harvest_config][max_children];
-			$num_to_process = count($init_bib_arr);
-			$bib_arr = array();
-			foreach ($init_bib_arr as $init_bib_arr_vals) {
-				$bib_arr[$init_bib_arr_vals[bnum]] = $init_bib_arr_vals[bib_lastupdate];
-			}
-			$db->disconnect();
-			parent::putlog("Finished collecting data keys.");
-
-			if (extension_loaded('pcntl') && $this->locum_config[harvest_config][harvest_with_children] && ($num_to_process >= (2 * $num_children))) {
-			
-				$increment = ceil($num_to_process / $num_children);
-			
-				$split_offset = 0;
-				for ($i = 0; $i < $num_children; ++$i) {
-					$end = $start + ($increment - 1);
-					$new_start = $end + 1;
-	
-					$pid = pcntl_fork();
-					if ($pid != -1) {
-						if ($pid) {
-							parent::putlog("Spawning child harvester to verify records. PID is $pid ..");
-						} else {
-							sleep(1);
-							++$i;
-							if ($i == $num_children) { $end++; }
-							$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
-							$num_bibs = count($bib_arr_sliced);
-							foreach ($bib_arr_sliced as $bnum => $init_bib_date) {
-								$locumclient->get_availability($bnum);
-							}
-							parent::putlog("Child process complete.  Checked $num_bibs records", 2);
-							exit($i);
-						}
-					} else {
-						parent::putlog("Unable to spawn harvester: ($i)", 5);
-					}
-					$start = $new_start;
-					$split_offset = $split_offset + $increment;
-				}
-				if ($pid) {
-					while ($i > 0) {
-						pcntl_waitpid(-1, &$status);
-						$val = pcntl_wexitstatus($status);
-						--$i;
-						}
-					parent::putlog("Verification complete!", 3);
-				}
-			} else {
-				// TODO - Bib verification for those poor saps w/o pcntl
-			}
-			$offset = $offset + $limit;
-			parent::putlog("Collecting current data keys starting at $offset");
-			$db = MDB2::connect($this->dsn);
-			$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit OFFSET $offset";
-			$init_result = $db->query($sql);
-			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-		}
-	}
-
-	/**
 	 * Does the actual update of the bib record if something has changed.
 	 * This function is called by verify_bibs()
 	 *
@@ -429,6 +278,255 @@ class locum_server extends locum {
 			"LEFT JOIN locum_availability on locum_bib_items.bnum = locum_availability.bnum " .
 			"WHERE active = '1'");
 	}
+	
+	
+	
+	/************ Verification / Maintenance Functions ************/
+	
+	
+	/**
+	 * Scans existing imported bibs for changes or weeds and makes the appropriate changes.
+	 * 
+	 * @param boolean $quiet Run this function silently.  Default: TRUE
+	 */
+	public function verify_bibs($quiet = FALSE) {
+		$limit = 1000;
+		$offset = 0;
+		
+		parent::putlog("Collecting current data keys ..");
+		$db = MDB2::connect($this->dsn);
+		$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit";
+		$init_result = $db->query($sql);
+		$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+		
+		while(!empty($init_bib_arr)) {
+			$num_children = $this->locum_config['harvest_config']['max_children'];
+			$num_to_process = count($init_bib_arr);
+			$bib_arr = array();
+			foreach ($init_bib_arr as $init_bib_arr_vals) {
+				$bib_arr[$init_bib_arr_vals['bnum']] = $init_bib_arr_vals['bib_lastupdate'];
+			}
+			$db->disconnect();
+			parent::putlog("Finished collecting data keys.");
+
+			if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
+			
+				$increment = ceil($num_to_process / $num_children);
+
+				$split_offset = 0;
+				for ($i = 0; $i < $num_children; ++$i) {
+					$end = $start + ($increment - 1);
+					$new_start = $end + 1;
+	
+					$pid = pcntl_fork();
+					if ($pid != -1) {
+						if ($pid) {
+							parent::putlog("Spawning child harvester to verify records of $start - $end. PID is $pid ..");
+						} else {
+							sleep(1);
+							++$i;
+							if ($i == $num_children) { $end++; }
+							$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
+							$num_bibs = count($bib_arr_sliced);
+							$tmp = self::update_bib($bib_arr_sliced);
+							$updated = $tmp[updated];
+							$retired = $tmp[retired];
+							parent::putlog("Child process complete.  Checked $num_bibs records, updated $updated records, retired $retired records.", 2);
+							exit($i);
+						}
+					} else {
+						parent::putlog("Unable to spawn harvester: ($i)", 5);
+					}
+					$start = $new_start;
+					$split_offset = $split_offset + $increment;
+				}
+				if ($pid) {
+					while ($i > 0) {
+						pcntl_waitpid(-1, &$status);
+						$val = pcntl_wexitstatus($status);
+						--$i;
+						}
+					parent::putlog("Verification complete!", 3);
+				}
+			} else {
+				// TODO - Bib verification for those poor saps w/o pcntl
+			}
+			
+			$offset = $offset + $limit;
+			parent::putlog("Collecting current data keys starting at $offset");
+			$db = MDB2::connect($this->dsn);
+			$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit OFFSET $offset";
+			$init_result = $db->query($sql);
+			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+		}
+	}
+
+	/**
+	 * Scans existing imported bibs for changes to the availability cache.
+	 * 
+	 * @param boolean $quiet Run this function silently.  Default: TRUE
+	 */
+	public function verify_status($quiet = TRUE) {
+		require_once('locum-client.php');
+		
+		$limit = 1000;
+		$offset = 0;
+
+		parent::putlog("Collecting current data keys ..");
+		$db = MDB2::connect($this->dsn);
+		$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit";
+		$init_result = $db->query($sql);
+		$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+		$locumclient = new locum_client;
+		
+		while(!empty($init_bib_arr)) {
+			$num_children = $this->locum_config['harvest_config']['max_children'];
+			$num_to_process = count($init_bib_arr);
+			$bib_arr = array();
+			foreach ($init_bib_arr as $init_bib_arr_vals) {
+				$bib_arr[$init_bib_arr_vals['bnum']] = $init_bib_arr_vals['bib_lastupdate'];
+			}
+			$db->disconnect();
+			parent::putlog("Finished collecting data keys.");
+
+			if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
+			
+				$increment = ceil($num_to_process / $num_children);
+			
+				$split_offset = 0;
+				for ($i = 0; $i < $num_children; ++$i) {
+					$end = $start + ($increment - 1);
+					$new_start = $end + 1;
+	
+					$pid = pcntl_fork();
+					if ($pid != -1) {
+						if ($pid) {
+							parent::putlog("Spawning child harvester to verify records. PID is $pid ..");
+						} else {
+							sleep(1);
+							++$i;
+							if ($i == $num_children) { $end++; }
+							$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
+							$num_bibs = count($bib_arr_sliced);
+							foreach ($bib_arr_sliced as $bnum => $init_bib_date) {
+								$locumclient->get_availability($bnum);
+							}
+							parent::putlog("Child process complete.  Checked $num_bibs records", 2);
+							exit($i);
+						}
+					} else {
+						parent::putlog("Unable to spawn harvester: ($i)", 5);
+					}
+					$start = $new_start;
+					$split_offset = $split_offset + $increment;
+				}
+				if ($pid) {
+					while ($i > 0) {
+						pcntl_waitpid(-1, &$status);
+						$val = pcntl_wexitstatus($status);
+						--$i;
+						}
+					parent::putlog("Verification complete!", 3);
+				}
+			} else {
+				// TODO - Bib verification for those poor saps w/o pcntl
+			}
+			$offset = $offset + $limit;
+			parent::putlog("Collecting current data keys starting at $offset");
+			$db = MDB2::connect($this->dsn);
+			$sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit OFFSET $offset";
+			$init_result = $db->query($sql);
+			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+		}
+	}
+	
+	/**
+	 * Scans existing imported bibs for changes to the syndetics links.
+	 * 
+	 * @param boolean $quiet Run this function silently.  Default: TRUE
+	 */
+	public function verify_syndetics() {
+		$limit = 1000;
+		$offset = 0;
+		
+		parent::putlog("Collecting current data keys ..");
+		$db = MDB2::connect($this->dsn);
+		$sql = "SELECT stdnum,bib_lastupdate FROM locum_bib_items WHERE stdnum IS NOT NULL ORDER BY bib_lastupdate DESC LIMIT $limit";
+		$init_result = $db->query($sql);
+		$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+		
+		while(!empty($init_bib_arr)) {
+			$num_children = $this->locum_config['harvest_config']['max_children'];
+			$num_to_process = count($init_bib_arr);
+			$bib_arr = array();
+			foreach ($init_bib_arr as $init_bib_arr_vals) {
+				$bib_arr[$init_bib_arr_vals['stdnum']] = $init_bib_arr_vals['bib_lastupdate'];
+			}
+			$db->disconnect();
+			parent::putlog("Finished collecting data keys.");
+
+			if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
+			
+				$increment = ceil($num_to_process / $num_children);
+			
+				$split_offset = 0;
+				for ($i = 0; $i < $num_children; ++$i) {
+					$end = $start + ($increment - 1);
+					$new_start = $end + 1;
+	
+					$pid = pcntl_fork();
+					if ($pid != -1) {
+						if ($pid) {
+							parent::putlog("Spawning child harvester to verify records. PID is $pid ..");
+						} else {
+							sleep(1);
+							++$i;
+							if ($i == $num_children) { $end++; }
+							$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
+							$num_bibs = count($bib_arr_sliced);
+							foreach ($bib_arr_sliced as $stdnum => $init_bib_date) {
+								if (preg_match('/ /', $stdnum)) {
+								$stdnum_arr = explode(' ', $stdnum);
+								$stdnum = $stdnum_arr[0];
+								} else {
+								$stdnum = $stdnum;
+								}
+								parent::putlog("Checking syndetics for $stdnum", 2);
+								$tmp = self::get_syndetics($stdnum);
+							}
+
+							parent::putlog("Child process complete.  Checked $num_bibs records", 2);
+							exit($i);
+						}
+					} else {
+						parent::putlog("Unable to spawn harvester: ($i)", 5);
+					}
+					$start = $new_start;
+					$split_offset = $split_offset + $increment;
+				}
+				if ($pid) {
+					while ($i > 0) {
+						pcntl_waitpid(-1, &$status);
+						$val = pcntl_wexitstatus($status);
+						--$i;
+						}
+					parent::putlog("Verification complete!", 3);
+				}
+			} else {
+				// TODO - Bib verification for those poor saps w/o pcntl
+			}
+			$offset = $offset + $limit;
+			parent::putlog("Collecting current data keys starting at $offset");
+			$db = MDB2::connect($this->dsn);
+			$sql = "SELECT stdnum,bib_lastupdate FROM locum_bib_items WHERE stdnum IS NOT NULL ORDER BY bib_lastupdate DESC LIMIT $limit OFFSET $offset";
+			$init_result = $db->query($sql);
+			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+		}
+	}
+	
+	
+	/************ External Content Functions ************/
+	
 
 	/**
 	 * Grabs the cover image URL for caching (much faster on the front-end to do it this way).
@@ -515,5 +613,5 @@ class locum_server extends locum {
 		}
 		return $image_url;
 	}
-
+	
 }

@@ -28,7 +28,7 @@ class locum_client extends locum {
 	 * @param array $facet_args String-keyed array of facet parameters. See code below for array structure
 	 * @return array String-keyed result set
 	 */
-	public function search($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE) {
+	public function search($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE, $limit_available = FALSE) {
 		
 		require_once($this->locum_config['sphinx_config']['api_path'] . '/sphinxapi.php');
 		$db =& MDB2::connect($this->dsn);
@@ -36,11 +36,12 @@ class locum_client extends locum {
 		$term_arr = explode('?', trim(preg_replace('/\//', ' ', $term)));
 		$term = trim($term_arr[0]);
 		
-		if ($term == '*') { 
+		if ($term == '*' || $term == '**') { 
 			$term = ''; 
 		} else {
 			$term_prestrip = $term;
-			$term = preg_replace('/[^A-Za-z0-9*\- ]/iD', '', $term);
+			//$term = preg_replace('/[^A-Za-z0-9*\- ]/iD', '', $term);
+			$term = preg_replace('/\*\*/','*', $term);
 		}
 		$final_result_set['term'] = $term;
 		$final_result_set['type'] = trim($type);
@@ -50,14 +51,21 @@ class locum_client extends locum {
 		$cl->SetServer($this->locum_config['sphinx_config']['server_addr'], (int) $this->locum_config['sphinx_config']['server_port']);
 
 		// As always, defaults to 'keyword'
-		$match_type = SPH_MATCH_ALL;
+		
+		$bool = FALSE;
+		$cl->SetMatchMode(SPH_MATCH_ALL);
+		if($term == "") { $cl->SetMatchMode(SPH_MATCH_ANY); }
+		if(preg_match("/ \| /i",$term) || preg_match("/ \-/i",$term) || preg_match("/ \!/i",$term)) { $cl->SetMatchMode(SPH_MATCH_BOOLEAN); $bool = TRUE; }
+		if(preg_match("/ OR /i",$term)) { $cl->SetMatchMode(SPH_MATCH_BOOLEAN); $term = preg_replace('/ OR /i',' | ',$term);$bool = TRUE; }
+		if(preg_match("/\"/i",$term) || preg_match("/\@/i",$term)) { $cl->SetMatchMode(SPH_MATCH_EXTENDED2); $bool = TRUE; }
+		
 		switch ($type) {
 			case 'author':
 				$cl->SetFieldWeights(array('author' => 50, 'addl_author' => 30));
 				$idx = 'bib_items_author';
 				break;
 			case 'title':
-				$cl->SetFieldWeights(array('title' => 50, 'series' => 30));
+				$cl->SetFieldWeights(array('title' => 50, 'title_medium' => 50, 'series' => 30));
 				$idx = 'bib_items_title';
 				break;
 			case 'series':
@@ -70,12 +78,12 @@ class locum_client extends locum {
 			case 'callnum':
 				$cl->SetFieldWeights(array('callnum' => 100));
 				$idx = 'bib_items_callnum';
-				$match_type = SPH_MATCH_ANY;
+				//$cl->SetMatchMode(SPH_MATCH_ANY);
 				break;
 			case 'tags':
 				$cl->SetFieldWeights(array('tag_idx' => 100));
 				$idx = 'bib_items_tags';
-				$match_type = SPH_MATCH_PHRASE;
+				$cl->SetMatchMode(SPH_MATCH_PHRASE);
 				break;
 			case 'reviews':
 				$cl->SetFieldWeights(array('review_idx' => 100));
@@ -83,7 +91,7 @@ class locum_client extends locum {
 				break;
 			case 'keyword':
 			default:
-				$cl->SetFieldWeights(array('title' => 50, 'author' => 50, 'addl_author' => 40, 'tag_idx' =>35, 'series' => 25, 'review_idx' => 10, 'notes' => 10, 'subjects' => 5 ));
+				$cl->SetFieldWeights(array('title' => 50, 'title_medium' => 50, 'author' => 70, 'addl_author' => 40, 'tag_idx' =>35, 'series' => 25, 'review_idx' => 10, 'notes' => 10, 'subjects' => 5 ));
 				$idx = 'bib_items_keyword';
 				break;
 
@@ -118,7 +126,7 @@ class locum_client extends locum {
 				$cl->SetSortMode(SPH_SORT_ATTR_ASC, 'title_ord');
 				break;
 			case 'author':
-				$cl->SetSortMode(SPH_SORT_ATTR_ASC, 'author_ord');
+				$cl->SetSortMode(SPH_SORT_EXTENDED, 'author_null ASC, author_ord ASC');
 				break;
 			case 'top_rated':
 				$cl->SetSortMode(SPH_SORT_ATTR_DESC, 'rating_idx');
@@ -135,13 +143,19 @@ class locum_client extends locum {
 			case 'popular_total':
 				$cl->SetSortMode(SPH_SORT_ATTR_DESC, 'hold_count_total');
 				break;
+			case 'atoz':
+				$cl->SetSortMode(SPH_SORT_ATTR_ASC, 'title_ord');
+				break;
+			case 'ztoa':
+				$cl->SetSortMode(SPH_SORT_ATTR_DESC, 'title_ord');
+				break;
 			default:
 				$cl->SetSortMode(SPH_SORT_RELEVANCE);
 				break;
 		}
 
 		// Filter by material types
-		if (count($format_array)) {
+		if (is_array($format_array)) {
 			foreach ($format_array as $format) {
 				if (strtolower($format) != 'all') {
 					$filter_arr_mat[] = crc32(trim($format));
@@ -160,9 +174,16 @@ class locum_client extends locum {
 			if (count($filter_arr_loc)) { $cl->SetFilter('loc_code', $filter_arr_loc); }
 		}
 
+		$cl->SetRankingMode(SPH_RANK_WORDCOUNT);
 		$cl->SetLimits(0, 5000, 5000);
-		$cl->SetMatchMode($match_type);
 		$sph_res_all = $cl->Query($term, $idx); // Grab all the data for the facetizer
+		
+		if(empty($sph_res_all[matches]) && $bool == FALSE && $term != "*" && $type != "tags") {
+			$term = '"'.$term.'"/1';
+			$cl->SetMatchMode(SPH_MATCH_EXTENDED2);
+			$sph_res_all = $cl->Query($term, $idx);
+			$forcedchange = 'yes';
+		}
 		
 		$cl->SetLimits((int) $offset, (int) $limit);
 
@@ -188,8 +209,63 @@ class locum_client extends locum {
 				$bib_hits_all[] = $bnum;
 			}
 		}
+		
+		// Limit list to available
+		
+		if ($limit_available && $final_result_set[num_hits]) {
+			$limit_available = strval($limit_available);
+			// remove bibs from full list that we *know* are unavailable
+			$cache_cutoff = date("Y-m-d H:i:00", time() - 3600); // 1 hour
+			if (array_key_exists($limit_available, $this->locum_config['locations'])) {
+				// if location passed in, filter out by that location, otherwise just the ones that are empty
+				$location_sql = "NOT LIKE '%$limit_available%'";
+			} else {
+				$location_sql = "= ''";
+			}
+			
+			$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+			$utfprep = $db->query($utf);
+			
+			$sql = "SELECT bnum FROM locum_availability WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND locations $location_sql AND timestamp > '$cache_cutoff'";
+			$init_result =& $db->query($sql);
+			$unavail_bibs = $init_result->fetchCol();
+			$bib_hits_all = array_values(array_diff($bib_hits_all,$unavail_bibs));
+
+			// rebuild from the full list
+			unset($bib_hits);
+			$available_count = 0;
+			foreach ($bib_hits_all as $key => $bib_hit) {
+				$bib_avail = self::get_availability($bib_hit);
+				$available = (array_key_exists($limit_available, $this->locum_config['locations']) ? is_array($bib_avail['locations'][$limit_available]) : ($bib_avail['total'] > 0));
+				if ($available) {
+					$available_count++;
+					if ($available_count > $offset) {
+						$bib_hits[] = $bib_hit;
+						if (count($bib_hits) == $limit) {
+							//found as many as we need for this page
+							break;
+						}
+					}
+				} else {
+					// remove the bib from the bib_hits_all array
+					unset($bib_hits_all[$key]);
+				}
+			}
+			
+			// trim out the rest of the array based on *any* cache value
+			if(!empty($bib_hits_all)) {
+				$sql = "SELECT bnum FROM locum_availability WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND locations $location_sql";
+				$init_result =& $db->query($sql);
+				if($init_result){	
+					$unavail_bibs =& $init_result->fetchCol();
+					$bib_hits_all = array_values(array_diff($bib_hits_all,$unavail_bibs));
+				}
+			}
+			$final_result_set[num_hits] = count($bib_hits_all);
+		}
 
 		// Refine by facets
+		
 		if (count($facet_args)) {
 			$where = '';
 
@@ -216,38 +292,49 @@ class locum_client extends locum {
 				$where .= ' AND pub_year IN (' . implode(', ', $facet_args['facet_year']) . ')';
 			}
 			
-			$sql1 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where;
-			$sql2 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where . " LIMIT $offset, $limit";
-
-			$init_result =& $db->query($sql1);
-			$bib_hits_all = $init_result->fetchCol();
+			// Ages
+			if ($facet_args['age']) {
+				$where .= " AND ages LIKE '%" . $facet_args['age'] . "%'";
+			}
+			
+			if(!empty($bib_hits_all)) {
+				$sql1 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where;
+				$sql2 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where . " LIMIT $offset, $limit";
+				$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+				$utfprep = $db->query($utf);
+				$init_result =& $db->query($sql1);
+				$bib_hits_all = $init_result->fetchCol();
+				$init_result =& $db->query($sql2);
+				$bib_hits = $init_result->fetchCol();
+			}
 			$facet_total = count($bib_hits_all);
-			$init_result =& $db->query($sql2);
-			$bib_hits = $init_result->fetchCol();
-			$final_result_set['num_hits'] = $facet_total;
+			$final_result_set[num_hits] = $facet_total;
 		}
 
 		// First, we have to get the values back, unsorted against the Sphinx-sorted array
-		if ($final_result_set['num_hits'] > 0) {
-			$sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bib_hits) . ') ORDER BY FIELD(bnum, ' . implode(', ', $bib_hits) . ')';
-
+		if (count($bib_hits)) {
+			$sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bib_hits) . ')';
+			$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+			$utfprep = $db->query($utf);
 			$init_result =& $db->query($sql);
 			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
 			foreach ($init_bib_arr as $init_bib) {
-				$bib_reference_arr[(string) $init_bib['bnum']] = $init_bib;
+				// Get availability
+				$init_bib['availability'] = self::get_availability($init_bib['bnum']);
+				$bib_reference_arr[(string) $init_bib[bnum]] = $init_bib;
 			}
 
 			// Now we reconcile against the sphinx result
-			foreach ($sph_res_all['matches'] as $sph_bnum => $sph_binfo) {
+			foreach ($sph_res_all[matches] as $sph_bnum => $sph_binfo) {
 				if (in_array($sph_bnum, $bib_hits)) {
-					$final_result_set['results'][] = $bib_reference_arr[$sph_bnum];
+					$final_result_set[results][] = $bib_reference_arr[$sph_bnum];
 				}
 			}
-
 		}
 		
 		$db->disconnect();
-		$final_result_set['facets'] = self::facetizer($bib_hits_all);
+		$final_result_set[facets] = self::facetizer($bib_hits_all);
+		if($forcedchange == 'yes') { $final_result_set['changed'] = 'yes'; }
 		
 		return $final_result_set;
 
@@ -264,19 +351,13 @@ class locum_client extends locum {
 
 		$db =& MDB2::connect($this->dsn);
 		if (count($bib_hits_all)) {
-			$where_str = ' WHERE bnum in (';
-			foreach ($bib_hits_all as $bnum) {
-				$where_str .= $bnum . ',';
-			}
-			$where_str = substr($where_str, 0, -1) . ') ';
+			$where_str = 'WHERE bnum in (' . implode(",", $bib_hits_all) . ')';
 			
-
 			$sql['mat'] = 'SELECT DISTINCT mat_code, COUNT(mat_code) AS mat_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY mat_code ORDER BY mat_code_sum DESC';
 			$sql['series'] = 'SELECT DISTINCT series, COUNT(series) AS series_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY series ORDER BY series ASC';
 			$sql['loc'] = 'SELECT DISTINCT loc_code, COUNT(loc_code) AS loc_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY loc_code ORDER BY loc_code_sum DESC';
 			$sql['lang'] = 'SELECT DISTINCT lang, COUNT(lang) AS lang_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY lang ORDER BY lang_sum DESC';
 			$sql['pub_year'] = 'SELECT DISTINCT pub_year, COUNT(pub_year) AS pub_year_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY pub_year ORDER BY pub_year DESC';
-//			$sql[subj] = 'SELECT DISTINCT subjects, COUNT(subjects) AS subjects_sum FROM bib_items_subject ' . $where_str . 'GROUP BY subjects ORDER BY subjects ASC';
 
 			foreach ($sql AS $fkey => $fquery) {
 				$tmp_res =& $db->query($fquery);
@@ -285,22 +366,27 @@ class locum_client extends locum {
 					if ($values[0] && $values[1]) { $result[$fkey][$values[0]] = $values[1]; }
 				}
 			}
+			
+			// Create non-distinct facets for age
+			foreach ($this->locum_config['ages'] as $age_code => $age_name) {
+				$sql = "SELECT COUNT(bnum) as age_sum FROM locum_facet_heap $where_str AND ages LIKE '%$age_code%'";
+				$res =& $db->query($sql);
+				$result['ages'][$age_code] = $res->fetchOne();
+			}
+			
+			// Create facets from availability cache
+			$sql = "SELECT COUNT(bnum) as avail_sum FROM locum_availability $where_str AND locations != ''";
+			$res =& $db->query($sql);
+			$result['avail']['any'] = $res->fetchOne();
+			foreach ($this->locum_config['locations'] as $loc_code => $loc_name) {
+				$sql = "SELECT COUNT(bnum) as avail_sum FROM locum_availability $where_str AND locations LIKE '%$loc_code%'";
+				$res =& $db->query($sql);
+				$result['avail'][$loc_code] = $res->fetchOne();
+			}
+			
 			$db->disconnect();
 			return $result;
 		}
-	}
-	
-	// part of handling multi-branch holds
-	public function get_bib_numbers($limit = 10) {
-		$db =& MDB2::connect($this->dsn);
-		$res =& $db->query("SELECT bnum FROM locum_bib_items LIMIT $limit");
-		$item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
-		$db->disconnect();
-		$bnums = array();
-		foreach ($item_arr as $item) {
-			$bnums[] = $item['bnum'];
-		}
-		return $bnums;
 	}
 
 	/**
@@ -321,8 +407,10 @@ class locum_client extends locum {
 	 * @return array Bib item information
 	 */
 	public function get_bib_item($bnum) {
-		$db =& MDB2::connect($this->dsn);
-		$res =& $db->query("SELECT * FROM locum_bib_items WHERE bnum = '$bnum' LIMIT 1");
+		$db = MDB2::connect($this->dsn);
+		$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+		$utfprep = $db->query($utf);
+		$res = $db->query("SELECT * FROM locum_bib_items WHERE bnum = '$bnum' AND active = '1' LIMIT 1");
 		$item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
 		$db->disconnect();
 		return $item_arr[0];
@@ -504,6 +592,9 @@ class locum_client extends locum {
 		return $payment_result;
 	}
 	
+	
+	/************ External Content Functions ************/
+	
 	/**
 	 * Formulates "Did you mean?" I may move to the Yahoo API for this..
 	 * 
@@ -525,5 +616,60 @@ class locum_client extends locum {
 			return FALSE;
 		}
 	}
+	
+	public function get_syndetics($isbn) {
+		
+		$valid_hits = array(
+			'TOC' => 'Table of Contents',
+			'BNATOC' => 'Table of Contents',
+			'FICTION' => 'Fiction Profile',
+			'SUMMARY' => 'Summary / Annotation',
+			'DBCHAPTER' => 'Excerpt',
+			'LJREVIEW' => 'Library Journal Review',
+			'PWREVIEW' => 'Publishers Weekly Review',
+			'SLJREVIEW' => 'School Library Journal Review',
+			'CHREVIEW' => 'CHOICE Review',
+			'BLREVIEW' => 'Booklist Review',
+			'HORNBOOK' => 'Horn Book Review',
+			'KIRKREVIEW' => 'Kirkus Book Review',
+			'ANOTES' => 'Author Notes'
+		);
+		
+		$cust_id = $this->locum_config['api_config']['syndetic_custid'];
+		$db =& MDB2::connect($this->dsn);
+		$res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' AND updated > DATE_SUB(NOW(), INTERVAL 2 MONTH) LIMIT 1");
+		$dbres = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
+		
+		if ($dbres[0][links]) {
+			$links = explode('|', $dbres[0][links]);
+		} else {
+			$xmlurl = "http://www.syndetics.com/index.aspx?isbn=$isbn/index.xml&client=$cust_id&type=xw10";
+			$xmlraw = file_get_contents($xmlurl);
+			if (!preg_match('/error/', $xmlraw)) {
+				// record found
+				$xmlobj = (array) simplexml_load_string($xmlraw);
+				$delimit = '';
+				foreach ($xmlobj as $xkey => $xval) {
+					if (array_key_exists($xkey, $valid_hits)) {
+						$sqlfield .= $delimit . $xkey;
+						$delimit = '|';
+						$links[] = $xkey;
+					}
+				}
+				if ($sqlfield) {
+					$res = $db->query("INSERT INTO locum_syndetics_links VALUES ('$isbn', '$sqlfield', NOW())");
+				}
+			}
+		}
+		
+		if ($links) {
+			foreach ($links as $link) {
+				$link_result[$valid_hits[$link]] = 'http://www.syndetics.com/index.aspx?isbn=' . $isbn . '/' . $link . '.html&client=' . $cust_id;
+			}
+		}
+		$db->disconnect();
+		return $link_result;
+	}
+	
 
 }
