@@ -519,6 +519,7 @@ class locum_client extends locum {
 		$cancel_status = $this->locum_cntl->cancel_holds($cardnum, $pin, $items);
 		return $cancel_status;
 	}
+	
 	// <CraftySpace+>
 	/**
 	 * Places or removes freezes on holds
@@ -532,8 +533,8 @@ class locum_client extends locum {
 		$update_status = $this->locum_cntl->update_holdfreezes($cardnum, $pin, $holdfreezes_to_update);
 		return $update_status;
 	}
-	// </CraftySpace+>
 	
+	// </CraftySpace+>
 	/**
 	 * Places holds
 	 *
@@ -617,24 +618,11 @@ class locum_client extends locum {
 		}
 	}
 	
+	/*
+	 * Client-side version of get_syndetics().  Does not harvest, only checks the database.
+	 */
 	public function get_syndetics($isbn) {
-		
-		$valid_hits = array(
-			'TOC' => 'Table of Contents',
-			'BNATOC' => 'Table of Contents',
-			'FICTION' => 'Fiction Profile',
-			'SUMMARY' => 'Summary / Annotation',
-			'DBCHAPTER' => 'Excerpt',
-			'LJREVIEW' => 'Library Journal Review',
-			'PWREVIEW' => 'Publishers Weekly Review',
-			'SLJREVIEW' => 'School Library Journal Review',
-			'CHREVIEW' => 'CHOICE Review',
-			'BLREVIEW' => 'Booklist Review',
-			'HORNBOOK' => 'Horn Book Review',
-			'KIRKREVIEW' => 'Kirkus Book Review',
-			'ANOTES' => 'Author Notes'
-		);
-		
+
 		$cust_id = $this->locum_config['api_config']['syndetic_custid'];
 		$db =& MDB2::connect($this->dsn);
 		$res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' AND updated > DATE_SUB(NOW(), INTERVAL 2 MONTH) LIMIT 1");
@@ -643,23 +631,7 @@ class locum_client extends locum {
 		if ($dbres[0][links]) {
 			$links = explode('|', $dbres[0][links]);
 		} else {
-			$xmlurl = "http://www.syndetics.com/index.aspx?isbn=$isbn/index.xml&client=$cust_id&type=xw10";
-			$xmlraw = file_get_contents($xmlurl);
-			if (!preg_match('/error/', $xmlraw)) {
-				// record found
-				$xmlobj = (array) simplexml_load_string($xmlraw);
-				$delimit = '';
-				foreach ($xmlobj as $xkey => $xval) {
-					if (array_key_exists($xkey, $valid_hits)) {
-						$sqlfield .= $delimit . $xkey;
-						$delimit = '|';
-						$links[] = $xkey;
-					}
-				}
-				if ($sqlfield) {
-					$res = $db->query("INSERT INTO locum_syndetics_links VALUES ('$isbn', '$sqlfield', NOW())");
-				}
-			}
+			return FALSE;
 		}
 		
 		if ($links) {

@@ -90,7 +90,7 @@ class locum_server extends locum {
 			if(empty($init_bib_arr)) {
 				$bib = $this->locum_cntl->scrape_bib($i);
 
-				if ($bib == FALSE) {
+				if ($bib == FALSE || $bib == 'skip') {
 					$process_report['skipped']++;
 				} else {
 					$subj = array_pop($bib);
@@ -614,4 +614,57 @@ class locum_server extends locum {
 		return $image_url;
 	}
 	
+	public function get_syndetics($isbn) {
+		
+		$valid_hits = array(
+			'TOC' => 'Table of Contents',
+			'BNATOC' => 'Table of Contents',
+			'FICTION' => 'Fiction Profile',
+			'SUMMARY' => 'Summary / Annotation',
+			'DBCHAPTER' => 'Excerpt',
+			'LJREVIEW' => 'Library Journal Review',
+			'PWREVIEW' => 'Publishers Weekly Review',
+			'SLJREVIEW' => 'School Library Journal Review',
+			'CHREVIEW' => 'CHOICE Review',
+			'BLREVIEW' => 'Booklist Review',
+			'HORNBOOK' => 'Horn Book Review',
+			'KIRKREVIEW' => 'Kirkus Book Review',
+			'ANOTES' => 'Author Notes'
+		);
+		
+		$cust_id = $this->locum_config['api_config']['syndetic_custid'];
+		$db =& MDB2::connect($this->dsn);
+		$res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' AND updated > DATE_SUB(NOW(), INTERVAL 2 MONTH) LIMIT 1");
+		$dbres = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
+		
+		if ($dbres[0][links]) {
+			$links = explode('|', $dbres[0][links]);
+		} else {
+			$xmlurl = "http://www.syndetics.com/index.aspx?isbn=$isbn/index.xml&client=$cust_id&type=xw10";
+			$xmlraw = file_get_contents($xmlurl);
+			if (!preg_match('/error/', $xmlraw)) {
+				// record found
+				$xmlobj = (array) simplexml_load_string($xmlraw);
+				$delimit = '';
+				foreach ($xmlobj as $xkey => $xval) {
+					if (array_key_exists($xkey, $valid_hits)) {
+						$sqlfield .= $delimit . $xkey;
+						$delimit = '|';
+						$links[] = $xkey;
+					}
+				}
+				if ($sqlfield) {
+					$res = $db->query("INSERT INTO locum_syndetics_links VALUES ('$isbn', '$sqlfield', NOW())");
+				}
+			}
+		}
+		
+		if ($links) {
+			foreach ($links as $link) {
+				$link_result[$valid_hits[$link]] = 'http://www.syndetics.com/index.aspx?isbn=' . $isbn . '/' . $link . '.html&client=' . $cust_id;
+			}
+		}
+		$db->disconnect();
+		return $link_result;
+	}
 }
