@@ -2,8 +2,8 @@
 <?php
 
 // You'll need to change these:
-$first_record = 1000006;
-$last_record = 1284000;
+$first_record = 1000000;
+$last_record = 1300000;
 $large_record_split = 10;
 
 // Init scripts, library locations, and binaries
