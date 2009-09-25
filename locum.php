@@ -24,9 +24,12 @@ class locum {
 	 * This function prepares Locum for activity.
 	 */
 	public function __construct() {
-		if (function_exists('locum_constructor_override')) {
-		  locum_constructor_override($this);
-		  return;
+		if (file_exists('locum-hooks.php')) {
+			require_once('locum-hooks.php');
+		}
+		if (is_callable(array('locum_hook', 'constructor_override'))) {
+			$hook = new locum_client_hook;
+			$hook->constructor_override($this);
 		}
 		
 		ini_set('memory_limit','128M');
@@ -44,7 +47,7 @@ class locum {
 		// Fire up the Locum connector
 		$locum_class_name = 'locum_' . $this->locum_config['ils_config']['ils'] . '_' . $this->locum_config['ils_config']['ils_version'];
 		$this->locum_cntl =& new $locum_class_name;
-		$this->locum_cntl->locum_config = $this->locum_config;
+		$this->locum_cntl->locum_config = array_merge($this->locum_config, parse_ini_file('connectors/' . $connector_type . '/config/' . $connector_type . '.ini', true));
 	}
 
 

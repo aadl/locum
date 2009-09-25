@@ -30,6 +30,12 @@ class locum_client extends locum {
 	 */
 	public function search($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE, $limit_available = FALSE) {
 		
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE, $limit_available = FALSE);
+		}
+		
+		
 		require_once($this->locum_config['sphinx_config']['api_path'] . '/sphinxapi.php');
 		$db =& MDB2::connect($this->dsn);
 		
@@ -235,7 +241,7 @@ class locum_client extends locum {
 			unset($bib_hits);
 			$available_count = 0;
 			foreach ($bib_hits_all as $key => $bib_hit) {
-				$bib_avail = self::get_availability($bib_hit);
+				$bib_avail = self::get_item_status($bib_hit);
 				$available = (array_key_exists($limit_available, $this->locum_config['locations']) ? is_array($bib_avail['locations'][$limit_available]) : ($bib_avail['total'] > 0));
 				if ($available) {
 					$available_count++;
@@ -320,7 +326,7 @@ class locum_client extends locum {
 			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
 			foreach ($init_bib_arr as $init_bib) {
 				// Get availability
-				$init_bib['availability'] = self::get_availability($init_bib['bnum']);
+				$init_bib['availability'] = self::get_item_status($init_bib['bnum']);
 				$bib_reference_arr[(string) $init_bib[bnum]] = $init_bib;
 			}
 
@@ -396,6 +402,11 @@ class locum_client extends locum {
 	 * @return array Detailed item availability 
 	 */
 	public function get_item_status($bnum) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($bnum);
+		}
+		
 		$result = $this->locum_cntl->item_status($bnum);
 		return $result;
 	}
@@ -407,6 +418,11 @@ class locum_client extends locum {
 	 * @return array Bib item information
 	 */
 	public function get_bib_item($bnum) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($bnum);
+		}
+		
 		$db = MDB2::connect($this->dsn);
 		$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
 		$utfprep = $db->query($utf);
@@ -443,6 +459,11 @@ class locum_client extends locum {
 	 * @return boolean|array Array of patron information or FALSE if login fails
 	 */
 	public function get_patron_info($pid) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($pid);
+		}
+		
 		$patron_info = $this->locum_cntl->patron_info($pid);
 		return $patron_info;
 	}
@@ -455,6 +476,11 @@ class locum_client extends locum {
 	 * @return boolean|array Array of patron checkouts or FALSE if $barcode doesn't exist
 	 */
 	public function get_patron_checkouts($cardnum, $pin = NULL) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $pin = NULL);
+		}
+		
 		$patron_checkouts = $this->locum_cntl->patron_checkouts($cardnum, $pin);
 		return $patron_checkouts;
 	}
@@ -467,6 +493,11 @@ class locum_client extends locum {
 	 * @return boolean|array Array of patron checkouts or FALSE if $barcode doesn't exist
 	 */
 	public function get_patron_checkout_history($cardnum, $pin = NULL) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $pin = NULL);
+		}
+		
 		$patron_checkout_history = $this->locum_cntl->patron_checkout_history($cardnum, $pin);
 		return $patron_checkout_history;
 	}
@@ -478,6 +509,11 @@ class locum_client extends locum {
 	 * @return boolean|array Array of patron checkouts or FALSE if $barcode doesn't exist
 	 */
 	public function set_patron_checkout_history($cardnum, $pin = NULL, $action) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $pin = NULL, $action);
+		}
+		
 		$success = $this->locum_cntl->patron_checkout_history_toggle($cardnum, $pin, $action);
 		return $success;
 	}
@@ -490,6 +526,11 @@ class locum_client extends locum {
 	 * @return boolean|array Array of patron holds or FALSE if login fails
 	 */
 	public function get_patron_holds($cardnum, $pin = NULL) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $pin = NULL);
+		}
+		
 		$patron_holds = $this->locum_cntl->patron_holds($cardnum, $pin);
 		return $patron_holds;
 	}
@@ -503,6 +544,11 @@ class locum_client extends locum {
 	 * @return boolean|array Array of item renewal statuses or FALSE if it cannot renew for some reason
 	 */
 	public function renew_items($cardnum, $pin = NULL, $items = NULL) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $pin = NULL, $items = NULL);
+		}
+		
 		$renew_status = $this->locum_cntl->renew_items($cardnum, $pin, $items);
 		return $renew_status;
 	}
@@ -516,6 +562,11 @@ class locum_client extends locum {
 	 * @return boolean TRUE or FALSE if it cannot cancel for some reason
 	 */
 	public function cancel_holds($cardnum, $pin = NULL, $items = NULL) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $pin = NULL, $items = NULL);
+		}
+		
 		$cancel_status = $this->locum_cntl->cancel_holds($cardnum, $pin, $items);
 		return $cancel_status;
 	}
@@ -530,6 +581,11 @@ class locum_client extends locum {
 	 * @return boolean TRUE or FALSE if it cannot cancel for some reason
 	 */
 	public function update_holdfreezes($cardnum, $pin, $holdfreezes_to_update) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $pin, $holdfreezes_to_update);
+		}
+		
 		$update_status = $this->locum_cntl->update_holdfreezes($cardnum, $pin, $holdfreezes_to_update);
 		return $update_status;
 	}
@@ -546,6 +602,11 @@ class locum_client extends locum {
 	 * @return boolean TRUE or FALSE if it cannot place the hold for some reason
 	 */
 	public function place_hold($cardnum, $bnum, $varname = NULL, $pin = NULL, $pickup_loc = NULL) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $bnum, $varname = NULL, $pin = NULL, $pickup_loc = NULL);
+		}
+		
 		$request_status = $this->locum_cntl->place_hold($cardnum, $bnum, $varname, $pin, $pickup_loc);
 		if ($request_status['success']) {
 			$db =& MDB2::connect($this->dsn);
@@ -562,6 +623,11 @@ class locum_client extends locum {
 	 * @return boolean|array Array of patron holds or FALSE if login fails
 	 */
 	public function get_patron_fines($cardnum, $pin = NULL) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $pin = NULL);
+		}
+		
 		$patron_fines = $this->locum_cntl->patron_fines($cardnum, $pin);
 		return $patron_fines;
 	}
@@ -589,6 +655,11 @@ class locum_client extends locum {
 	 * @return array Payment result
 	 */
 	public function pay_patron_fines($cardnum, $pin = NULL, $payment_details) {
+		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+			eval('$hook = new ' . __CLASS__ . '_hook;');
+			return $hook->{__FUNCTION__}($cardnum, $pin = NULL, $payment_details);
+		}
+		
 		$payment_result = $this->locum_cntl->pay_patron_fines($cardnum, $pin, $payment_details);
 		return $payment_result;
 	}
