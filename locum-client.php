@@ -401,13 +401,75 @@ class locum_client extends locum {
 	 * @param string $bnum Bib number
 	 * @return array Detailed item availability 
 	 */
-	public function get_item_status($bnum) {
+	public function get_item_status($bnum, $force_refresh = FALSE) {
 		if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
 			eval('$hook = new ' . __CLASS__ . '_hook;');
-			return $hook->{__FUNCTION__}($bnum);
+			return $hook->{__FUNCTION__}($bnum, $force_refresh);
 		}
 		
-		$result = $this->locum_cntl->item_status($bnum);
+		$db = MDB2::connect($this->dsn);
+		
+		if (!$force_refresh && $this->locum_config['avail_cache']['cache']) {
+			$this->locum_config['avail_cache']['cache_cutoff'];
+			$cache_cutoff = date("Y-m-d H:i:s", (time() - (60 * $this->locum_config['avail_cache']['cache_cutoff'])));
+			// check the cache table
+			$sql = "SELECT * FROM locum_availability WHERE bnum = :bnum AND timestamp > '$cache_cutoff'";
+			$statement = $db->prepare($sql, array('integer'));
+			$dbr = $statement->execute(array('bnum' => $bnum));
+			if (PEAR::isError($dbr) && $this->cli) {
+				echo "DB connection failed... " . $dbr->getMessage() . "\n";
+			}
+			$statement->Free();
+			$cached = $dbr->NumRows();
+		}
+		if ($cached) {
+			$row = $dbr->fetchRow(MDB2_FETCHMODE_ASSOC);
+			$avail_array = unserialize($row['available']);
+			return $avail_array;
+		}
+		
+		$status = $this->locum_cntl->item_status($bnum);
+		$result['total'] = count($status['items']);
+		$result['avail'] = 0;
+		$result['holds'] = $status['holds'];
+		$result['on_order'] = $status['on_order'];
+		$result['orders'] = $status['orders'];
+		$result['nextdue'] = 0;
+		$result['items'] = $status['items'];
+		$result['locations'] = array();
+		$result['callnums'] = array();
+		$result['ages'] = array();
+		$loc_codes = array();
+		foreach ($status['items'] as $item) {
+			$result['locations'][$item['loc_code']][$item['age']]++;
+			if (!in_array($item['age'], $result['ages'])) {
+				$result['ages'][] = $item['age'];
+			}
+			if (!in_array($item['callnum'], $result['callnums'])) {
+				$result['callnums'][] = $item['callnum'];
+			}
+			if ($result['nextdue'] == 0 || $result['nextdue'] > $item['due']) {
+				$result['nextdue'] = $item['due'];
+			}
+			if (!in_array($item['loc_code'], $loc_codes)) {
+				$loc_codes[] = $item['loc_code'];
+			}
+		}
+		
+		if ($this->locum_config['avail_cache']['cache']) {
+			// Update Cache
+			$avail_blob = serialize($result);
+			$ages = implode(',', $result['ages']);
+			$locs = implode(',', $loc_codes);
+			$sql = "REPLACE INTO locum_availability (bnum, ages, locations, available) VALUES (:bnum, '$ages', '$locs', '$avail_blob')";
+			$statement = $db->prepare($sql, array('integer'));
+			$dbr = $statement->execute(array('bnum' => $bnum));
+			if (PEAR::isError($dbr) && $this->cli) {
+				echo "DB connection failed... " . $dbr->getMessage() . "\n";
+			}
+			$statement->Free();
+		}
+		
 		return $result;
 	}
 	

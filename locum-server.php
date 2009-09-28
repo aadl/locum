@@ -88,7 +88,7 @@ class locum_server extends locum {
 			$init_result = $db->query($sql);
 			$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
 			if(empty($init_bib_arr)) {
-				$bib = $this->locum_cntl->scrape_bib($i);
+				$bib = $this->locum_cntl->scrape_bib($i, $this->locum_config['api_config']['skip_covers']);
 
 				if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {
 					$process_report['skipped']++;
@@ -143,7 +143,7 @@ class locum_server extends locum {
 			}
 			$lastbib = $bnum;
 
-			$bib = $this->locum_cntl->scrape_bib($bnum, TRUE);
+			$bib = $this->locum_cntl->scrape_bib($bnum, $this->locum_config['api_config']['skip_covers']);
 			$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
 			$utfprep = $db->query($utf);
 
@@ -208,14 +208,6 @@ class locum_server extends locum {
 						$sql_prep =& $db->prepare('INSERT INTO locum_bib_items_subject VALUES (?, ?)', $types, MDB2_PREPARE_MANIP);
 						$affrows = $sql_prep->execute($insert_data);
 						$sql_prep->free();
-					}
-				}
-				
-				$db->query('DELETE FROM locum_bib_items_loc WHERE bnum = "' . $bib['bnum']. '"');
-				$status = $this->locum_cntl->item_status($bib['bnum']);
-				if (count($status['locations'])) {
-					foreach ($status['locations'] as $location) {
-						$db->query('INSERT INTO locum_bib_items_loc VALUES ("' . $bib['bnum'] . '", "' . $location . '")');
 					}
 				}
 				
