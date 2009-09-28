@@ -90,7 +90,7 @@ class locum_server extends locum {
 			if(empty($init_bib_arr)) {
 				$bib = $this->locum_cntl->scrape_bib($i);
 
-				if ($bib == FALSE || $bib == 'skip') {
+				if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {
 					$process_report['skipped']++;
 				} else {
 					$subj = array_pop($bib);
