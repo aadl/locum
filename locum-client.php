@@ -184,7 +184,7 @@ class locum_client extends locum {
 		$cl->SetLimits(0, 5000, 5000);
 		$sph_res_all = $cl->Query($term, $idx); // Grab all the data for the facetizer
 		
-		if(empty($sph_res_all[matches]) && $bool == FALSE && $term != "*" && $type != "tags") {
+		if(empty($sph_res_all['matches']) && $bool == FALSE && $term != "*" && $type != "tags") {
 			$term = '"'.$term.'"/1';
 			$cl->SetMatchMode(SPH_MATCH_EXTENDED2);
 			$sph_res_all = $cl->Query($term, $idx);
@@ -218,7 +218,7 @@ class locum_client extends locum {
 		
 		// Limit list to available
 		
-		if ($limit_available && $final_result_set[num_hits]) {
+		if ($limit_available && $final_result_set['num_hits']) {
 			$limit_available = strval($limit_available);
 			// remove bibs from full list that we *know* are unavailable
 			$cache_cutoff = date("Y-m-d H:i:00", time() - 3600); // 1 hour
@@ -267,7 +267,7 @@ class locum_client extends locum {
 					$bib_hits_all = array_values(array_diff($bib_hits_all,$unavail_bibs));
 				}
 			}
-			$final_result_set[num_hits] = count($bib_hits_all);
+			$final_result_set['num_hits'] = count($bib_hits_all);
 		}
 
 		// Refine by facets
@@ -314,7 +314,7 @@ class locum_client extends locum {
 				$bib_hits = $init_result->fetchCol();
 			}
 			$facet_total = count($bib_hits_all);
-			$final_result_set[num_hits] = $facet_total;
+			$final_result_set['num_hits'] = $facet_total;
 		}
 
 		// First, we have to get the values back, unsorted against the Sphinx-sorted array
@@ -327,19 +327,19 @@ class locum_client extends locum {
 			foreach ($init_bib_arr as $init_bib) {
 				// Get availability
 				$init_bib['availability'] = self::get_item_status($init_bib['bnum']);
-				$bib_reference_arr[(string) $init_bib[bnum]] = $init_bib;
+				$bib_reference_arr[(string) $init_bib['bnum']] = $init_bib;
 			}
 
 			// Now we reconcile against the sphinx result
-			foreach ($sph_res_all[matches] as $sph_bnum => $sph_binfo) {
+			foreach ($sph_res_all['matches'] as $sph_bnum => $sph_binfo) {
 				if (in_array($sph_bnum, $bib_hits)) {
-					$final_result_set[results][] = $bib_reference_arr[$sph_bnum];
+					$final_result_set['results'][] = $bib_reference_arr[$sph_bnum];
 				}
 			}
 		}
 		
 		$db->disconnect();
-		$final_result_set[facets] = self::facetizer($bib_hits_all);
+		$final_result_set['facets'] = self::facetizer($bib_hits_all);
 		if($forcedchange == 'yes') { $final_result_set['changed'] = 'yes'; }
 		
 		return $final_result_set;
@@ -440,28 +440,30 @@ class locum_client extends locum {
 		$result['callnums'] = array();
 		$result['ages'] = array();
 		$loc_codes = array();
-		foreach ($status['items'] as $item) {
-			$result['locations'][$item['loc_code']][$item['age']]++;
-			if (!in_array($item['age'], $result['ages'])) {
-				$result['ages'][] = $item['age'];
-			}
-			if (!in_array($item['callnum'], $result['callnums'])) {
-				$result['callnums'][] = $item['callnum'];
-			}
-			if ($result['nextdue'] == 0 || $result['nextdue'] > $item['due']) {
-				$result['nextdue'] = $item['due'];
-			}
-			if (!in_array($item['loc_code'], $loc_codes)) {
-				$loc_codes[] = $item['loc_code'];
+		if (count($status['items'])) {
+			foreach ($status['items'] as $item) {
+				$result['locations'][$item['loc_code']][$item['age']]++;
+				if (!in_array($item['age'], $result['ages'])) {
+					$result['ages'][] = $item['age'];
+				}
+				if (!in_array($item['callnum'], $result['callnums'])) {
+					$result['callnums'][] = $item['callnum'];
+				}
+				if ($result['nextdue'] == 0 || $result['nextdue'] > $item['due']) {
+					$result['nextdue'] = $item['due'];
+				}
+				if (!in_array($item['loc_code'], $loc_codes)) {
+					$loc_codes[] = $item['loc_code'];
+				}
 			}
 		}
 		
 		if ($this->locum_config['avail_cache']['cache']) {
 			// Update Cache
 			$avail_blob = serialize($result);
-			$ages = implode(',', $result['ages']);
-			$locs = implode(',', $loc_codes);
-			$sql = "REPLACE INTO locum_availability (bnum, ages, locations, available) VALUES (:bnum, '$ages', '$locs', '$avail_blob')";
+			$ages = count($result['ages']) ? "'" . implode(',', $result['ages']) . "'" : 'NULL';
+			$locs = count($loc_codes) ? "'" . implode(',', $loc_codes) . "'" : 'NULL';
+			$sql = "REPLACE INTO locum_availability (bnum, ages, locations, available) VALUES (:bnum, $ages, $locs, '$avail_blob')";
 			$statement = $db->prepare($sql, array('integer'));
 			$dbr = $statement->execute(array('bnum' => $bnum));
 			if (PEAR::isError($dbr) && $this->cli) {
@@ -761,8 +763,8 @@ class locum_client extends locum {
 		$res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' AND updated > DATE_SUB(NOW(), INTERVAL 2 MONTH) LIMIT 1");
 		$dbres = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
 		
-		if ($dbres[0][links]) {
-			$links = explode('|', $dbres[0][links]);
+		if ($dbres[0]['links']) {
+			$links = explode('|', $dbres[0]['links']);
 		} else {
 			return FALSE;
 		}

@@ -321,8 +321,8 @@ class locum_server extends locum {
 							$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
 							$num_bibs = count($bib_arr_sliced);
 							$tmp = self::update_bib($bib_arr_sliced);
-							$updated = $tmp[updated];
-							$retired = $tmp[retired];
+							$updated = $tmp['updated'];
+							$retired = $tmp['retired'];
 							parent::putlog("Child process complete.  Checked $num_bibs records, updated $updated records, retired $retired records.", 2);
 							exit($i);
 						}
@@ -401,7 +401,7 @@ class locum_server extends locum {
 							$bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
 							$num_bibs = count($bib_arr_sliced);
 							foreach ($bib_arr_sliced as $bnum => $init_bib_date) {
-								$locumclient->get_availability($bnum);
+								$locumclient->get_item_status($bnum, TRUE);
 							}
 							parent::putlog("Child process complete.  Checked $num_bibs records", 2);
 							exit($i);
@@ -629,8 +629,8 @@ class locum_server extends locum {
 		$res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' AND updated > DATE_SUB(NOW(), INTERVAL 2 MONTH) LIMIT 1");
 		$dbres = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
 		
-		if ($dbres[0][links]) {
-			$links = explode('|', $dbres[0][links]);
+		if ($dbres[0]['links']) {
+			$links = explode('|', $dbres[0]['links']);
 		} else {
 			$xmlurl = "http://www.syndetics.com/index.aspx?isbn=$isbn/index.xml&client=$cust_id&type=xw10";
 			$xmlraw = file_get_contents($xmlurl);
