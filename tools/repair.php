@@ -24,12 +24,12 @@ $bnum_arr = $bnum_result->fetchCol();
 
 $bib_range = array();
 for ($i = $min_bib; $i < $max_bib; $i++) {
-	$bib_range[] = $i;
+  $bib_range[] = $i;
 }
 $empty_bibs = array_diff($bib_range, $bnum_arr);
 
 foreach ($empty_bibs as $empty_bib) {
-	$locum->harvest_bibs($empty_bib, $empty_bib);
+  $locum->harvest_bibs($empty_bib, $empty_bib);
 }
 
 $locum->rebuild_holds_cache();

@@ -22,18 +22,18 @@ $locum = new locum_server;
 // that handle the higher bib nums often work much harder and longer.
 // This is a way around that.
 if (($last_record - $first_record) > 1000) {
-	$split_amount = ceil(($last_record - $first_record) / $large_record_split);
-	$begin_at_bib = $first_record;
-	for ($i = 0; $i < $large_record_split; $i++){
-		$split_bib_arr[$i]['first'] = $begin_at_bib;
-		$split_bib_arr[$i]['last'] = $begin_at_bib + $split_amount;
-		$begin_at_bib = $begin_at_bib + $split_amount + 1;
-	}
-	foreach ($split_bib_arr as $split_bib) {
-		$locum->harvest_bibs($split_bib['first'], $split_bib['last']);
-	}
+  $split_amount = ceil(($last_record - $first_record) / $large_record_split);
+  $begin_at_bib = $first_record;
+  for ($i = 0; $i < $large_record_split; $i++){
+    $split_bib_arr[$i]['first'] = $begin_at_bib;
+    $split_bib_arr[$i]['last'] = $begin_at_bib + $split_amount;
+    $begin_at_bib = $begin_at_bib + $split_amount + 1;
+  }
+  foreach ($split_bib_arr as $split_bib) {
+    $locum->harvest_bibs($split_bib['first'], $split_bib['last']);
+  }
 } else {
-	$locum->harvest_bibs($first_record, $last_record);
+  $locum->harvest_bibs($first_record, $last_record);
 }
 
 $locum->rebuild_holds_cache();
