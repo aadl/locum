@@ -354,6 +354,10 @@ class locum_client extends locum {
    * @return array Faceted array of information for bib numbers passed.  Keyed by: mat, series, loc, lang, pub_year
    */
   public function facetizer($bib_hits_all) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($bib_hits_all);
+    }
 
     $db =& MDB2::connect($this->dsn);
     if (count($bib_hits_all)) {
@@ -503,6 +507,11 @@ class locum_client extends locum {
    * @return array Bib item information for $bnum_arr
    */
   public function get_bib_items_arr($bnum_arr) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($bnum_arr);
+    }
+    
     if (count($bnum_arr)) {
       $db =& MDB2::connect($this->dsn);
       $sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bnum_arr) . ')';
@@ -738,6 +747,11 @@ class locum_client extends locum {
    * @return string|boolean Either returns a string suggestion or FALSE
    */
   public function yahoo_suggest($str) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($str);
+    }
+    
     if (trim($str) && $this->locum_config['api_config']['yahh_app_id']) {
       $appid = $this->locum_config['api_config']['yahh_app_id'];
     } else {
@@ -757,6 +771,10 @@ class locum_client extends locum {
    * Client-side version of get_syndetics().  Does not harvest, only checks the database.
    */
   public function get_syndetics($isbn) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($isbn);
+    }
 
     $cust_id = $this->locum_config['api_config']['syndetic_custid'];
     $db =& MDB2::connect($this->dsn);
