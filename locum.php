@@ -30,6 +30,9 @@ class locum {
     if (is_callable(array('locum_hook', 'constructor_override'))) {
       $hook = new locum_client_hook;
       $hook->constructor_override($this);
+      if ($this->replace_constructor) {
+        return;
+      }
     }
     
     ini_set('memory_limit','128M');
@@ -59,6 +62,11 @@ class locum {
    * @param boolean $silent Output to stdout.  Default: yes
    */
   public function putlog($msg, $severity = 1, $silent = TRUE) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($msg, $severity, $silent);
+    }
+    
     if ($severity > 5) { $severity = 5; }
     $logfile = $this->locum_config['locum_config']['log_file'];
     $quiet = $this->locum_config['locum_config']['run_quiet'];
@@ -79,6 +87,11 @@ class locum {
    * @return string|array Formatted values
    */
   public function csv_parser($csv, $implode = FALSE, $separator = ',') {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($csv, $implode, $separator);
+    }
+    
     $csv_array = explode($separator, trim($csv));
     $cleaned = array();
     foreach ($csv_array as $csv_value) {

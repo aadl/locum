@@ -24,6 +24,10 @@ class locum_server extends locum {
    * @param boolean $quiet quietly harvest or not.  Default: TRUE
    */
   public function harvest_bibs($start, $end, $quiet = TRUE) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($start, $end, $quiet);
+    }
     
     if ($start > $end) { return 0; }
 
@@ -75,7 +79,11 @@ class locum_server extends locum {
    * @return array Array of information about the bibs imported
    */
   public function import_bibs($start, $end) {
-
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($start, $end);
+    }
+    
     $db =& MDB2::connect($this->dsn);
 
     $process_report['skipped'] = 0;
@@ -131,7 +139,11 @@ class locum_server extends locum {
    * @return array Array of # updated and # retired
    */
   public function update_bib($bib_arr) {
-
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($bib_arr);
+    }
+    
     $db = MDB2::connect($this->dsn);
     $updated = 0;
     $retired = 0;
@@ -225,6 +237,11 @@ class locum_server extends locum {
    * Uses the ini "harvest_reach" param to determine how far forward to seek.
    */
   public function new_bib_scan() {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}();
+    }
+    
     $db = MDB2::connect($this->dsn);
     $sql = 'SELECT MAX(bnum) FROM locum_bib_items';
     $max_bib_result =& $db->query($sql);
@@ -242,6 +259,11 @@ class locum_server extends locum {
    * dortable popularity data.
    */
   public function rebuild_holds_cache() {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}();
+    }
+    
     $db = MDB2::connect($this->dsn);
     $db->query('DELETE FROM locum_holds_count');
     $db->query('INSERT INTO locum_holds_count (bnum) SELECT locum_bib_items.bnum FROM locum_bib_items');
@@ -262,6 +284,11 @@ class locum_server extends locum {
   }
 
   public function rebuild_facet_heap() {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}();
+    }
+    
     $db = MDB2::connect($this->dsn);
     $db->exec("DELETE FROM locum_facet_heap");
     $db->exec("INSERT INTO locum_facet_heap (bnum, series, mat_code, loc_code, lang, pub_year, pub_decade, bib_lastupdate, ages) " .
@@ -281,7 +308,12 @@ class locum_server extends locum {
    * 
    * @param boolean $quiet Run this function silently.  Default: TRUE
    */
-  public function verify_bibs($quiet = FALSE) {
+  public function verify_bibs($quiet = TRUE) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($quiet);
+    }
+    
     $limit = 1000;
     $offset = 0;
     
@@ -359,6 +391,11 @@ class locum_server extends locum {
    * @param boolean $quiet Run this function silently.  Default: TRUE
    */
   public function verify_status($quiet = TRUE) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($quiet);
+    }
+    
     require_once('locum-client.php');
     
     $limit = 1000;
@@ -437,7 +474,12 @@ class locum_server extends locum {
    * 
    * @param boolean $quiet Run this function silently.  Default: TRUE
    */
-  public function verify_syndetics() {
+  public function verify_syndetics($quiet = TRUE) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($quiet);
+    }
+    
     $limit = 1000;
     $offset = 0;
     
@@ -528,6 +570,10 @@ class locum_server extends locum {
    * @return string Image URL or NULL
    */
   public function get_cover_img($stdnum_raw) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($stdnum_raw);
+    }
 
     // Format stdnum as best we can
     if (preg_match('/ /', $stdnum_raw)) {
@@ -564,6 +610,11 @@ class locum_server extends locum {
    * @return string Cover image URL
    */
   public function get_amazon_image($stdnum, $api_key) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($stdnum, $api_key);
+    }
+    
     $url =  'http://webservices.amazon.com/onca/xml?Service=AWSECommerceService';
     $url.=  "&AWSAccessKeyId=$api_key";
     $url.=  "&Operation=ItemLookup&IdType=ASIN&ItemId=$stdnum";
@@ -591,6 +642,11 @@ class locum_server extends locum {
    * @return string Cover image URL
    */
   public function get_syndetic_image($stdnum, $cust_id) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($stdnum, $cust_id);
+    }
+    
     $image_url = '';
     $url = 'http://www.syndetics.com/index.aspx?isbn=' . $stdnum . '/index.xml&client=' . $cust_id . '&type=xw10';
     $syn_dl = @file_get_contents($url);
@@ -607,21 +663,25 @@ class locum_server extends locum {
   }
   
   public function get_syndetics($isbn) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($isbn);
+    }
     
     $valid_hits = array(
-      'TOC' => 'Table of Contents',
-      'BNATOC' => 'Table of Contents',
-      'FICTION' => 'Fiction Profile',
-      'SUMMARY' => 'Summary / Annotation',
-      'DBCHAPTER' => 'Excerpt',
-      'LJREVIEW' => 'Library Journal Review',
-      'PWREVIEW' => 'Publishers Weekly Review',
-      'SLJREVIEW' => 'School Library Journal Review',
-      'CHREVIEW' => 'CHOICE Review',
-      'BLREVIEW' => 'Booklist Review',
-      'HORNBOOK' => 'Horn Book Review',
-      'KIRKREVIEW' => 'Kirkus Book Review',
-      'ANOTES' => 'Author Notes'
+      'TOC'         => 'Table of Contents',
+      'BNATOC'      => 'Table of Contents',
+      'FICTION'     => 'Fiction Profile',
+      'SUMMARY'     => 'Summary / Annotation',
+      'DBCHAPTER'   => 'Excerpt',
+      'LJREVIEW'    => 'Library Journal Review',
+      'PWREVIEW'    => 'Publishers Weekly Review',
+      'SLJREVIEW'   => 'School Library Journal Review',
+      'CHREVIEW'    => 'CHOICE Review',
+      'BLREVIEW'    => 'Booklist Review',
+      'HORNBOOK'    => 'Horn Book Review',
+      'KIRKREVIEW'  => 'Kirkus Book Review',
+      'ANOTES'      => 'Author Notes'
     );
     
     $cust_id = $this->locum_config['api_config']['syndetic_custid'];
