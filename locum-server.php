@@ -229,7 +229,7 @@ class locum_server extends locum {
     }
     $db->disconnect();
     parent::putlog("Processed $firstbib - $lastbib");
-    return array('retired' => $retired, 'updated' => $updated);
+    return array('retired' => $retired, 'updated' => $updated, 'skipped' => $skipped);
   }
 
   /**
@@ -369,7 +369,7 @@ class locum_server extends locum {
             pcntl_waitpid(-1, &$status);
             $val = pcntl_wexitstatus($status);
             --$i;
-            }
+          }
           parent::putlog("Verification complete!", 3);
         }
       } else {
@@ -454,7 +454,7 @@ class locum_server extends locum {
             pcntl_waitpid(-1, &$status);
             $val = pcntl_wexitstatus($status);
             --$i;
-            }
+          }
           parent::putlog("Verification complete!", 3);
         }
       } else {
@@ -523,7 +523,7 @@ class locum_server extends locum {
                 $stdnum_arr = explode(' ', $stdnum);
                 $stdnum = $stdnum_arr[0];
                 } else {
-                $stdnum = $stdnum;
+                  $stdnum = $stdnum;
                 }
                 parent::putlog("Checking syndetics for $stdnum", 2);
                 $tmp = self::get_syndetics($stdnum);
@@ -543,7 +543,7 @@ class locum_server extends locum {
             pcntl_waitpid(-1, &$status);
             $val = pcntl_wexitstatus($status);
             --$i;
-            }
+          }
           parent::putlog("Verification complete!", 3);
         }
       } else {
