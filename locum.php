@@ -50,7 +50,9 @@ class locum {
     // Fire up the Locum connector
     $locum_class_name = 'locum_' . $this->locum_config['ils_config']['ils'] . '_' . $this->locum_config['ils_config']['ils_version'];
     $this->locum_cntl =& new $locum_class_name;
-    $this->locum_cntl->locum_config = array_merge($this->locum_config, parse_ini_file('connectors/' . $connector_type . '/config/' . $connector_type . '.ini', true));
+    if (file_exists('connectors/' . $connector_type . '/config/' . $connector_type . '.ini')) {
+      $this->locum_cntl->locum_config = array_merge($this->locum_config, parse_ini_file('connectors/' . $connector_type . '/config/' . $connector_type . '.ini', true));
+    }
   }
 
 
