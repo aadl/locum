@@ -32,7 +32,7 @@ class locum_client extends locum {
     
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE, $limit_available = FALSE);
+      return $hook->{__FUNCTION__}($type, $term, $limit, $offset, $sort_opt, $format_array, $location_array, $facet_args, $override_search_filter, $limit_available);
     }
     
     
@@ -551,7 +551,7 @@ class locum_client extends locum {
   public function get_patron_checkouts($cardnum, $pin = NULL) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin = NULL);
+      return $hook->{__FUNCTION__}($cardnum, $pin);
     }
     
     $patron_checkouts = $this->locum_cntl->patron_checkouts($cardnum, $pin);
@@ -568,7 +568,7 @@ class locum_client extends locum {
   public function get_patron_checkout_history($cardnum, $pin = NULL) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin = NULL);
+      return $hook->{__FUNCTION__}($cardnum, $pin);
     }
     
     $patron_checkout_history = $this->locum_cntl->patron_checkout_history($cardnum, $pin);
@@ -584,7 +584,7 @@ class locum_client extends locum {
   public function set_patron_checkout_history($cardnum, $pin = NULL, $action) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin = NULL, $action);
+      return $hook->{__FUNCTION__}($cardnum, $pin, $action);
     }
     
     $success = $this->locum_cntl->patron_checkout_history_toggle($cardnum, $pin, $action);
@@ -601,7 +601,7 @@ class locum_client extends locum {
   public function get_patron_holds($cardnum, $pin = NULL) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin = NULL);
+      return $hook->{__FUNCTION__}($cardnum, $pin);
     }
     
     $patron_holds = $this->locum_cntl->patron_holds($cardnum, $pin);
@@ -619,51 +619,32 @@ class locum_client extends locum {
   public function renew_items($cardnum, $pin = NULL, $items = NULL) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin = NULL, $items = NULL);
+      return $hook->{__FUNCTION__}($cardnum, $pin, $items);
     }
     
     $renew_status = $this->locum_cntl->renew_items($cardnum, $pin, $items);
     return $renew_status;
   }
+  
+  /**
+   * Updates holds/reserves
+   *
+   * @param string $cardnum Patron barcode/card number
+   * @param string $pin Patron pin/password
+   * @param array $cancelholds Array of varname => item/bib numbers to be cancelled, or NULL for everything.
+   * @param array $holdfreezes_to_update Array of updated holds freezes.
+   * @param array $pickup_locations Array of pickup location changes.
+   * @return boolean TRUE or FALSE if it cannot cancel for some reason
+   */
+  public function update_holds($cardnum, $pin = NULL, $cancelholds = array(), $holdfreezes_to_update = array(), $pickup_locations = array()) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($cardnum, $pin, $cancelholds, $holdfreezes_to_update, $pickup_locations);
+    }
 
-  /**
-   * Cancels holds
-   *
-   * @param string $cardnum Patron barcode/card number
-   * @param string $pin Patron pin/password
-   * @param array Array of varname => item numbers to be renewed, or NULL for everything.
-   * @return boolean TRUE or FALSE if it cannot cancel for some reason
-   */
-  public function cancel_holds($cardnum, $pin = NULL, $items = NULL) {
-    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
-      eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin = NULL, $items = NULL);
-    }
-    
-    $cancel_status = $this->locum_cntl->cancel_holds($cardnum, $pin, $items);
-    return $cancel_status;
+    return $this->locum_cntl->update_holds($cardnum, $pin, $cancelholds, $holdfreezes_to_update, $pickup_locations);
   }
   
-  // <CraftySpace+>
-  /**
-   * Places or removes freezes on holds
-   *
-   * @param string $cardnum Patron barcode/card number
-   * @param string $pin Patron pin/password
-   * @param array $holdfreezes_to_update Array of bnum => new status.
-   * @return boolean TRUE or FALSE if it cannot cancel for some reason
-   */
-  public function update_holdfreezes($cardnum, $pin, $holdfreezes_to_update) {
-    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
-      eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin, $holdfreezes_to_update);
-    }
-    
-    $update_status = $this->locum_cntl->update_holdfreezes($cardnum, $pin, $holdfreezes_to_update);
-    return $update_status;
-  }
-  
-  // </CraftySpace+>
   /**
    * Places holds
    *
@@ -677,7 +658,7 @@ class locum_client extends locum {
   public function place_hold($cardnum, $bnum, $varname = NULL, $pin = NULL, $pickup_loc = NULL) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $bnum, $varname = NULL, $pin = NULL, $pickup_loc = NULL);
+      return $hook->{__FUNCTION__}($cardnum, $bnum, $varname, $pin, $pickup_loc);
     }
     
     $request_status = $this->locum_cntl->place_hold($cardnum, $bnum, $varname, $pin, $pickup_loc);
@@ -698,7 +679,7 @@ class locum_client extends locum {
   public function get_patron_fines($cardnum, $pin = NULL) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin = NULL);
+      return $hook->{__FUNCTION__}($cardnum, $pin);
     }
     
     $patron_fines = $this->locum_cntl->patron_fines($cardnum, $pin);
@@ -730,13 +711,32 @@ class locum_client extends locum {
   public function pay_patron_fines($cardnum, $pin = NULL, $payment_details) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin = NULL, $payment_details);
+      return $hook->{__FUNCTION__}($cardnum, $pin, $payment_details);
     }
     
     $payment_result = $this->locum_cntl->pay_patron_fines($cardnum, $pin, $payment_details);
     return $payment_result;
   }
   
+  /*
+   * Returns an array of random bibs.
+   */
+  public function get_bib_numbers($limit = 10) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($limit);
+    }
+    
+    $db =& MDB2::connect($this->dsn);
+    $res =& $db->query("SELECT bnum FROM locum_bib_items ORDER BY RAND() LIMIT $limit");
+    $item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
+    $db->disconnect();
+    $bnums = array();
+    foreach ($item_arr as $item) {
+      $bnums[] = $item['bnum'];
+    }
+    return $bnums;
+  }
   
   /************ External Content Functions ************/
   
