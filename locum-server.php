@@ -784,7 +784,6 @@ class locum_server extends locum {
         stream_set_blocking($stream, true);
         $cmdout = stream_get_contents($stream);
       }
-      else { print "problem logging in with key"; }
     }
     $success = "succesfully sent SIGHUP";
     $check = strpos($cmdout,$success);
