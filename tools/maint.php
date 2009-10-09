@@ -20,9 +20,7 @@ $locum->new_bib_scan();
 $locum->rebuild_holds_cache();
 
 // Restart services, reindex, etc.
-shell_exec($mysql_init_script . ' restart');
-sleep(2);
-shell_exec($sphinx_indexer . '  --all --rotate');
+$locum->index();
 
 // This can all be done in situ
 $locum->verify_status();

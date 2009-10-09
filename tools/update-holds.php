@@ -14,6 +14,4 @@ $locum = new locum_server;
 $locum->rebuild_holds_cache();
 
 // Restart services, reindex, etc.
-shell_exec($mysql_init_script . ' restart');
-sleep(2);
-shell_exec($sphinx_indexer . '  --all --rotate');
+$locum->index();
