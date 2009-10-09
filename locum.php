@@ -37,6 +37,7 @@ class locum {
     
     ini_set('memory_limit','128M');
     $this->locum_config = parse_ini_file('config/locum.ini', true);
+    $script_dir = realpath(dirname(__FILE__));
 
     // Take care of requirements
     require_once('MDB2.php');
@@ -50,9 +51,10 @@ class locum {
     // Fire up the Locum connector
     $locum_class_name = 'locum_' . $this->locum_config['ils_config']['ils'] . '_' . $this->locum_config['ils_config']['ils_version'];
     $this->locum_cntl =& new $locum_class_name;
-    if (file_exists('connectors/' . $connector_type . '/config/' . $connector_type . '.ini')) {
-      $this->locum_cntl->locum_config = array_merge($this->locum_config, parse_ini_file('connectors/' . $connector_type . '/config/' . $connector_type . '.ini', true));
+    if (file_exists($script_dir . '/connectors/' . $connector_type . '/config/' . $connector_type . '.ini')) {
+      $this->locum_config = array_merge($this->locum_config, parse_ini_file('connectors/' . $connector_type . '/config/' . $connector_type . '.ini', true));
     }
+    $this->locum_cntl->locum_config = $this->locum_config;
   }
 
 
