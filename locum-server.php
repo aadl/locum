@@ -298,7 +298,86 @@ class locum_server extends locum {
       "WHERE active = '1'");
   }
   
+  /**
+   * Tells sphinx indexer to index
+   * Supports specific indexes
+   *
+   * @param string $index index to index
+   * @param boolean $new TRUE or FALSE on whether it is initial index. Default is FALSE - reindex
+   * @return string Status Success or Failure
+   */
+  public function index($index = 'all', $new = FALSE) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($index, $new);
+    }
   
+    $binpath = $this->locum_config['sphinx_config']['bin_path'];
+    $server = $this->locum_config['sphinx_config']['server_addr'];
+    $pubkey = $this->locum_config['sphinx_config']['pubkey_path'];
+    $privkey = $this->locum_config['sphinx_config']['privkey_path'];
+    $secret = $this->locum_config['sphinx_config']['key_pass'];
+    $username = $this->locum_config['sphinx_config']['key_user'];
+    
+    switch ($index) {
+      case "keyword":
+        $options = "bib_items_keyword";
+        break;
+      case "author":
+        $options = "bib_items_author";
+        break;
+      case "title":
+        $options = "bib_items_title";
+        break;
+      case "callnum":
+        $options = "bib_items_callnum";
+        break;
+      case "subject":
+        $options = "bib_items_subject";
+        break;
+      case "tags":
+        $options = "bib_items_tags";
+        break;
+      case "reviews":
+        $options = "bib_items_reviews";
+        break;
+      case "social":
+        $options = "bib_items_tags bib_items_reviews";
+        break;
+      case "bib":
+        $options = "bib_items_keyword bib_items_author bib_items_title bib_items_callnum bib_items_subject";
+        break;
+      default:
+        $options = "--all";
+    }
+    
+    $command = $binpath . "/indexer " . $options;
+    if(!$new) {
+      $command .= " --rotate";
+    }
+    
+    if($server == 'localhost' || $server == '127.0.0.1') {
+      $cmdout = shell_exec($command);
+    }
+    else {
+      $connection = ssh2_connect($server, 22, array('hostkey'=>'ssh-rsa'));
+      if (ssh2_auth_pubkey_file($connection, $username, $pubkey, $privkey, $secret)) {
+        $stream = ssh2_exec($connection, $command);
+        stream_set_blocking($stream, true);
+        $cmdout = stream_get_contents($stream);
+      }
+    }
+    $success = "succesfully sent SIGHUP";
+    $check = strpos($cmdout,$success);
+    
+    if ($pos === FALSE) {
+      return FALSE;
+    }
+    else {
+      return TRUE;
+    }
+    
+  }
   
   /************ Verification / Maintenance Functions ************/
   
@@ -720,80 +799,5 @@ class locum_server extends locum {
     return $link_result;
   }
   
-  /**
-   * Tells sphinx indexer to index
-   * Supports specific indexes
-   *
-   * @param string $index index to index
-   * @param boolean $new TRUE or FALSE on whether it is initial index. Default is FALSE - reindex
-   * @return string Status Success or Failure
-   */
-  public function index($index = 'all', $new = FALSE) {
-  
-    $binpath = $this->locum_config['sphinx_config']['bin_path'];
-    $server = $this->locum_config['sphinx_config']['server_addr'];
-    $pubkey = $this->locum_config['sphinx_config']['pubkey_path'];
-    $privkey = $this->locum_config['sphinx_config']['privkey_path'];
-    $secret = $this->locum_config['sphinx_config']['key_pass'];
-    $username = $this->locum_config['sphinx_config']['key_user'];
-    
-    switch ($index) {
-      case "keyword":
-        $options = "bib_items_keyword";
-        break;
-      case "author":
-        $options = "bib_items_author";
-        break;
-      case "title":
-        $options = "bib_items_title";
-        break;
-      case "callnum":
-        $options = "bib_items_callnum";
-        break;
-      case "subject":
-        $options = "bib_items_subject";
-        break;
-      case "tags":
-        $options = "bib_items_tags";
-        break;
-      case "reviews":
-        $options = "bib_items_reviews";
-        break;
-      case "social":
-        $options = "bib_items_tags bib_items_reviews";
-        break;
-      case "bib":
-        $options = "bib_items_keyword bib_items_author bib_items_title bib_items_callnum bib_items_subject";
-        break;
-      default:
-        $options = "--all";
-    }
-    
-    $command = $binpath . "/indexer " . $options;
-    if(!$new) {
-      $command .= " --rotate";
-    }
-    
-    if($server == 'localhost' || $server == '127.0.0.1') {
-      $cmdout = shell_exec($command);
-    }
-    else {
-      $connection = ssh2_connect($server, 22, array('hostkey'=>'ssh-rsa'));
-      if (ssh2_auth_pubkey_file($connection, $username, $pubkey, $privkey, $secret)) {
-        $stream = ssh2_exec($connection, $command);
-        stream_set_blocking($stream, true);
-        $cmdout = stream_get_contents($stream);
-      }
-    }
-    $success = "succesfully sent SIGHUP";
-    $check = strpos($cmdout,$success);
-    
-    if ($pos === FALSE) {
-      return FALSE;
-    }
-    else {
-      return TRUE;
-    }
-    
-  }
+
 }
