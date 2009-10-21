@@ -757,11 +757,11 @@ class locum_client extends locum {
     } else {
       $appid = 'YahooDemo';
     }
-    $url = 'http://search.yahooapis.com/WebSearchService/V1/spellingSuggestion?appid=' . $appid . '&query=' . $str;
+    $url = 'http://boss.yahooapis.com/ysearch/spelling/v1/'.$str.'?format=xml&appid=' . $appid;
     $suggest_obj = @simplexml_load_file($url);
 
-    if (trim($suggest_obj->Result)) {
-      return trim($suggest_obj->Result);
+    if (trim($suggest_obj->resultset_spell->result->suggestion)) {
+      return trim($suggest_obj->resultset_spell->result->suggestion);
     } else {
       return FALSE;
     }
