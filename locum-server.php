@@ -101,7 +101,7 @@ class locum_server extends locum {
         if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {
           $process_report['skipped']++;
         } else {
-          $subj = array_pop($bib);
+          $subj = $bib['subjects'];
           $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img');
           foreach ($bib as $bkey => $bval) {
             if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
@@ -172,7 +172,7 @@ class locum_server extends locum {
         // Do nothing.  This might happen if the ILS server is down.
         $skipped++;
       } else if ($bib['bnum'] && $bib['bib_lastupdate'] != $init_bib_date) {
-        $subj = array_pop($bib);
+        $subj = $bib['subjects'];
         $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum');
         foreach ($bib as $bkey => $bval) {
           if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
