@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 2.9.1.1-Debian-7
+-- version 2.9.1.1-Debian-10
 -- http://www.phpmyadmin.net
 -- 
 -- Host: localhost
--- Generation Time: Sep 24, 2008 at 11:54 AM
+-- Generation Time: Dec 28, 2009 at 11:25 AM
 -- Server version: 5.0.32
--- PHP Version: 5.2.0-8+etch11
+-- PHP Version: 5.2.0-8+etch15
 -- 
 -- Database: `scas`
 -- 
@@ -16,13 +16,29 @@ CREATE DATABASE IF NOT EXISTS `scas`;
 USE scas;
 
 -- 
+-- Table structure for table `locum_availability`
+-- 
+
+CREATE TABLE IF NOT EXISTS `locum_availability` (
+  `bnum` int(12) unsigned NOT NULL,
+  `ages` varchar(128) default NULL,
+  `locations` varchar(128) default NULL,
+  `available` blob NOT NULL,
+  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`bnum`),
+  KEY `timestamp` (`timestamp`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+-- 
 -- Table structure for table `locum_bib_items`
 -- 
 
 CREATE TABLE IF NOT EXISTS `locum_bib_items` (
-  `bnum` mediumint(13) NOT NULL,
+  `bnum` int(12) NOT NULL,
   `author` char(254) default NULL,
-  `addl_author` text,
+  `addl_author` mediumtext,
   `title` varchar(512) NOT NULL,
   `title_medium` char(64) default NULL,
   `edition` char(64) default NULL,
@@ -31,10 +47,11 @@ CREATE TABLE IF NOT EXISTS `locum_bib_items` (
   `pub_info` char(254) default NULL,
   `pub_year` smallint(4) default NULL,
   `stdnum` char(32) default NULL,
+  `upc` bigint(20) unsigned zerofill NOT NULL,
   `lccn` char(32) default NULL,
-  `descr` text,
-  `notes` text,
-  `subjects` text,
+  `descr` mediumtext,
+  `notes` mediumtext,
+  `subjects` mediumtext,
   `lang` char(12) default NULL,
   `loc_code` char(7) NOT NULL,
   `mat_code` char(7) NOT NULL,
@@ -51,7 +68,7 @@ CREATE TABLE IF NOT EXISTS `locum_bib_items` (
   KEY `pub_year` (`pub_year`),
   KEY `active` (`active`),
   KEY `bib_lastupdate` (`bib_lastupdate`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Item table for Bib records';
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Item table for Bib records';
 
 -- --------------------------------------------------------
 
@@ -60,11 +77,11 @@ CREATE TABLE IF NOT EXISTS `locum_bib_items` (
 -- 
 
 CREATE TABLE IF NOT EXISTS `locum_bib_items_subject` (
-  `bnum` int(13) NOT NULL,
+  `bnum` int(12) NOT NULL,
   `subjects` char(254) NOT NULL,
   KEY `bnum` (`bnum`),
   KEY `subjects` (`subjects`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Table for bibliographic subject headings';
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Table for bibliographic subject headings';
 
 -- --------------------------------------------------------
 
@@ -92,3 +109,16 @@ CREATE TABLE IF NOT EXISTS `locum_holds_placed` (
   `hold_date` date NOT NULL,
   KEY `bnum` (`bnum`,`hold_date`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+-- 
+-- Table structure for table `locum_syndetics_links`
+-- 
+
+CREATE TABLE IF NOT EXISTS `locum_syndetics_links` (
+  `isbn` char(32) NOT NULL,
+  `links` char(254) NOT NULL,
+  `updated` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`isbn`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Caches Syndetics content availability';
