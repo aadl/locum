@@ -98,4 +98,15 @@ class locum {
     }
     return $cleaned;
   }
+  
+  /**
+   * Returns a CRC32 value that is compatible with MySQL (>=4.1) CRC32() function
+   *
+   * @param string $str String to be converted
+   * @return int a CRC32 polynomial of the string
+   */
+  public function string_poly($str) {
+    return crc32($str) + 4294967296;
+  }
+  
 }

@@ -11,7 +11,7 @@ USE scas;
 -- No need to change anything below here
 DROP TABLE IF EXISTS locum_facet_heap;
 
-CREATE TABLE locum_facet_heap ENGINE=MEMORY SELECT locum_bib_items.bnum, series, mat_code, loc_code, lang, pub_year, TRUNCATE(pub_year/10,0)*10 AS pub_decade, bib_lastupdate, ages FROM locum_bib_items LEFT JOIN locum_availability on locum_bib_items.bnum = locum_availability.bnum WHERE active = '1';
+CREATE TABLE locum_facet_heap ENGINE=MEMORY CHARACTER SET utf8 COLLATE utf8_general_ci SELECT locum_bib_items.bnum, series, mat_code, loc_code, lang, pub_year, TRUNCATE(pub_year/10,0)*10 AS pub_decade, bib_lastupdate, ages FROM locum_bib_items LEFT JOIN locum_availability on locum_bib_items.bnum = locum_availability.bnum WHERE active = '1';
 ALTER TABLE locum_facet_heap ADD PRIMARY KEY (bnum);
 ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (series);
 ALTER TABLE locum_facet_heap ADD INDEX USING BTREE (mat_code);

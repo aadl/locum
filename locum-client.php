@@ -60,10 +60,13 @@ class locum_client extends locum {
     
     $bool = FALSE;
     $cl->SetMatchMode(SPH_MATCH_ALL);
-    if($term == "") { $cl->SetMatchMode(SPH_MATCH_ANY); }
-    if(preg_match("/ \| /i",$term) || preg_match("/ \-/i",$term) || preg_match("/ \!/i",$term)) { $cl->SetMatchMode(SPH_MATCH_BOOLEAN); $bool = TRUE; }
-    if(preg_match("/ OR /i",$term)) { $cl->SetMatchMode(SPH_MATCH_BOOLEAN); $term = preg_replace('/ OR /i',' | ',$term);$bool = TRUE; }
-    if(preg_match("/\"/i",$term) || preg_match("/\@/i",$term)) { $cl->SetMatchMode(SPH_MATCH_EXTENDED2); $bool = TRUE; }
+    if(!$term) {
+      $cl->SetMatchMode(SPH_MATCH_ANY); 
+    } else {
+      if(preg_match("/ \| /i",$term) || preg_match("/ \-/i",$term) || preg_match("/ \!/i",$term)) { $cl->SetMatchMode(SPH_MATCH_BOOLEAN); $bool = TRUE; }
+      if(preg_match("/ OR /i",$term)) { $cl->SetMatchMode(SPH_MATCH_BOOLEAN); $term = preg_replace('/ OR /i',' | ',$term); $bool = TRUE; }
+      if(preg_match("/\"/i",$term) || preg_match("/\@/i",$term)) { $cl->SetMatchMode(SPH_MATCH_EXTENDED2); $bool = TRUE; }
+    }
     
     switch ($type) {
       case 'author':
@@ -108,7 +111,7 @@ class locum_client extends locum {
       if (trim($this->locum_config['location_limits']['no_search'])) {
         $cfg_filter_arr = parent::csv_parser($this->locum_config['location_limits']['no_search']);
         foreach ($cfg_filter_arr as $cfg_filter) {
-          $cfg_filter_vals[] = crc32($cfg_filter);
+          $cfg_filter_vals[] = parent::string_poly($cfg_filter);
         }
         $cl->SetFilter('loc_code', $cfg_filter_vals, TRUE);
       }
@@ -156,7 +159,11 @@ class locum_client extends locum {
         $cl->SetSortMode(SPH_SORT_ATTR_DESC, 'title_ord');
         break;
       default:
-        $cl->SetSortMode(SPH_SORT_RELEVANCE);
+        if ($type == 'title') {
+          $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
+        } else {
+          $cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC, titlelength ASC');
+        }
         break;
     }
 
@@ -164,7 +171,7 @@ class locum_client extends locum {
     if (is_array($format_array)) {
       foreach ($format_array as $format) {
         if (strtolower($format) != 'all') {
-          $filter_arr_mat[] = crc32(trim($format));
+          $filter_arr_mat[] = parent::string_poly(trim($format));
         }
       }
       if (count($filter_arr_mat)) { $cl->SetFilter('mat_code', $filter_arr_mat); }
@@ -174,7 +181,7 @@ class locum_client extends locum {
     if (count($location_array)) {
       foreach ($location_array as $location) {
         if (strtolower($location) != 'all') {
-          $filter_arr_loc[] = crc32(trim($location));
+          $filter_arr_loc[] = parent::string_poly(trim($location));
         }
       }
       if (count($filter_arr_loc)) { $cl->SetFilter('loc_code', $filter_arr_loc); }
