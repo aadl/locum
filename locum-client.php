@@ -444,7 +444,7 @@ class locum_client extends locum {
     $result['avail'] = 0;
     $result['holds'] = $status['holds'];
     $result['on_order'] = $status['on_order'];
-    $result['orders'] = $status['orders'];
+    $result['orders'] = count($status['orders']) ? $status['orders'] : array();
     $result['nextdue'] = 0;
     $result['items'] = $status['items'];
     $result['locations'] = array();
@@ -465,6 +465,9 @@ class locum_client extends locum {
         }
         if (!in_array($item['loc_code'], $loc_codes)) {
           $loc_codes[] = $item['loc_code'];
+        }
+        if ($item['avail']) {
+          $result['avail'] = $result['avail'] + $item['avail'];
         }
       }
     }
