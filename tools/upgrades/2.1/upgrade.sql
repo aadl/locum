@@ -1,12 +1,13 @@
 USE scas;
 
-ALTER TABLE locum_bib_items CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE locum_bib_items_subject CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE locum_facet_heap CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE locum_holds_count CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE locum_holds_placed CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE `locum_bib_items` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE `locum_bib_items_subject` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE `locum_facet_heap` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE `locum_holds_count` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE `locum_holds_placed` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 ALTER TABLE `locum_bib_items` ADD `upc` BIGINT UNSIGNED ZEROFILL NOT NULL AFTER `stdnum` ;
+ALTER TABLE `locum_bib_items` ADD `download_link` TEXT NULL AFTER `cover_img` ;
 
 ALTER TABLE `insurge_index` CHANGE `bnum` `bnum` INT( 12 ) NOT NULL;
 ALTER TABLE `locum_bib_items` CHANGE `bnum` `bnum` INT( 12 ) NOT NULL;

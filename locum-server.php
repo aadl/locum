@@ -102,13 +102,13 @@ class locum_server extends locum {
           $process_report['skipped']++;
         } else {
           $subj = $bib['subjects'];
-          $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img');
+          $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img', 'download_link');
           foreach ($bib as $bkey => $bval) {
             if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
           }
           $bib_values['subjects_ser'] = serialize($subj);
-          $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer', 'text');
-          $sql_prep = $db->prepare('INSERT INTO locum_bib_items VALUES (:bnum, :author, :addl_author, :title, :title_medium, :edition, :series, :callnum, :pub_info, :pub_year, :stdnum, :upc, :lccn, :descr, :notes, :subjects_ser, :lang, :loc_code, :mat_code, :cover_img, NOW(), :bib_created, :bib_lastupdate, :bib_prevupdate, :bib_revs, \'1\')');
+          $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer', 'text', 'text');
+          $sql_prep = $db->prepare('INSERT INTO locum_bib_items VALUES (:bnum, :author, :addl_author, :title, :title_medium, :edition, :series, :callnum, :pub_info, :pub_year, :stdnum, :upc, :lccn, :descr, :notes, :subjects_ser, :lang, :loc_code, :mat_code, :cover_img, :download_link, NOW(), :bib_created, :bib_lastupdate, :bib_prevupdate, :bib_revs, \'1\')');
           
           $affrows = $sql_prep->execute($bib_values);
           parent::putlog("Importing bib # $i - $bib[title]");
@@ -173,14 +173,14 @@ class locum_server extends locum {
         $skipped++;
       } else if ($bib['bnum'] && $bib['bib_lastupdate'] != $init_bib_date) {
         $subj = $bib['subjects'];
-        $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum');
+        $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'download_link');
         foreach ($bib as $bkey => $bval) {
           if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
         }
         
         $bib_values['subjects_ser'] = serialize($subj);
       
-        $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer');
+        $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer', 'text');
     
         $setlist = 
           "bib_created = :bib_created, " .
@@ -205,6 +205,7 @@ class locum_server extends locum {
           "descr = :descr, " .
           "notes = :notes, " .
           "subjects = :subjects_ser, " .
+          "download_link = :download_link, " .
           "modified = NOW()";
       
         $sql_prep =& $db->prepare('UPDATE locum_bib_items SET ' . $setlist . ' WHERE bnum = :bnum', $types, MDB2_PREPARE_MANIP);
@@ -358,8 +359,7 @@ class locum_server extends locum {
     
     if($server == 'localhost' || $server == '127.0.0.1') {
       $cmdout = shell_exec($command);
-    }
-    else {
+    } else {
       $connection = ssh2_connect($server, 22, array('hostkey'=>'ssh-rsa'));
       if (ssh2_auth_pubkey_file($connection, $username, $pubkey, $privkey, $secret)) {
         $stream = ssh2_exec($connection, $command);
