@@ -764,6 +764,10 @@ class locum_server extends locum {
     );
     
     $cust_id = $this->locum_config['api_config']['syndetic_custid'];
+    if (!$cust_id) { 
+      return NULL;
+    }
+    
     $db =& MDB2::connect($this->dsn);
     $res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' AND updated > DATE_SUB(NOW(), INTERVAL 2 MONTH) LIMIT 1");
     $dbres = $res->fetchAll(MDB2_FETCHMODE_ASSOC);

@@ -785,8 +785,28 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($isbn);
     }
-
+    
     $cust_id = $this->locum_config['api_config']['syndetic_custid'];
+    if (!$cust_id) { 
+      return NULL;
+    }
+    
+    $valid_hits = array(
+      'TOC'         => 'Table of Contents',
+      'BNATOC'      => 'Table of Contents',
+      'FICTION'     => 'Fiction Profile',
+      'SUMMARY'     => 'Summary / Annotation',
+      'DBCHAPTER'   => 'Excerpt',
+      'LJREVIEW'    => 'Library Journal Review',
+      'PWREVIEW'    => 'Publishers Weekly Review',
+      'SLJREVIEW'   => 'School Library Journal Review',
+      'CHREVIEW'    => 'CHOICE Review',
+      'BLREVIEW'    => 'Booklist Review',
+      'HORNBOOK'    => 'Horn Book Review',
+      'KIRKREVIEW'  => 'Kirkus Book Review',
+      'ANOTES'      => 'Author Notes'
+    );
+    
     $db =& MDB2::connect($this->dsn);
     $res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' AND updated > DATE_SUB(NOW(), INTERVAL 2 MONTH) LIMIT 1");
     $dbres = $res->fetchAll(MDB2_FETCHMODE_ASSOC);

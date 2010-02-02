@@ -13,8 +13,10 @@ $sphinx_indexer = '/usr/local/sphinx/bin/indexer';
 // Include Locum libraries
 require_once($locum_lib_dir . '/locum-server.php');
 
-// Data maintenance
+// Instantiate Locum Server
 $locum = new locum_server;
+
+// Data maintenance
 $locum->verify_bibs();
 $locum->new_bib_scan();
 $locum->rebuild_holds_cache();
