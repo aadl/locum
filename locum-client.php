@@ -334,6 +334,7 @@ class locum_client extends locum {
       foreach ($init_bib_arr as $init_bib) {
         // Get availability
         $init_bib['availability'] = self::get_item_status($init_bib['bnum']);
+        $init_bib['stdnum'] = preg_replace('/[^\d]/','', $init_bib['stdnum']);
         $bib_reference_arr[(string) $init_bib['bnum']] = $init_bib;
       }
 
@@ -493,9 +494,10 @@ class locum_client extends locum {
    * Returns information about a bib title.
    *
    * @param string $bnum Bib number
+   * @param boolean $get_inactive Return records whose active = 0
    * @return array Bib item information
    */
-  public function get_bib_item($bnum) {
+  public function get_bib_item($bnum, $get_inactive = FALSE) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($bnum);
@@ -504,9 +506,15 @@ class locum_client extends locum {
     $db = MDB2::connect($this->dsn);
     $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
     $utfprep = $db->query($utf);
-    $res = $db->query("SELECT * FROM locum_bib_items WHERE bnum = '$bnum' AND active = '1' LIMIT 1");
+    if ($get_inactive) {
+      $sql = "SELECT * FROM locum_bib_items WHERE bnum = '$bnum' LIMIT 1";
+    } else {
+      $sql = "SELECT * FROM locum_bib_items WHERE bnum = '$bnum' AND active = '1' LIMIT 1";
+    }
+    $res = $db->query($sql);
     $item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
     $db->disconnect();
+    $item_arr[0]['stdnum'] = preg_replace('/[^\d]/','', $item_arr[0]['stdnum']);
     return $item_arr[0];
   }
   
@@ -529,6 +537,7 @@ class locum_client extends locum {
       $item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
       $db->disconnect();
       foreach ($item_arr as $item) {
+        $item['stdnum'] = preg_replace('/[^\d]/','', $item['stdnum']);
         $bib[(string) $item['bnum']] = $item;
       }
     }
