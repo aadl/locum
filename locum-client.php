@@ -300,14 +300,27 @@ class locum_client extends locum {
         }
         $where .= ' AND lang IN (' . implode(', ', $lang_arr) . ')';
       }
+      
       // Pub. Year
       if ($facet_args['facet_year']) {
         $where .= ' AND pub_year IN (' . implode(', ', $facet_args['facet_year']) . ')';
       }
       
+      // Pub. Decade
+      if ($facet_args['facet_decade']) {
+        $where .= ' AND pub_year IN (' . implode(', ', $facet_args['facet_decade']) . ')';
+      }
+      
       // Ages
       if ($facet_args['age']) {
-        $where .= " AND ages LIKE '%" . $facet_args['age'] . "%'";
+        $where .= ' AND (';
+        $age_or = '';
+        foreach ($facet_args['age'] as $facet_age) {
+          $facet_age_val = $db->quote($facet_age, 'text');
+          $where .= "$age_or ages LIKE '%" . $facet_age . "%' ";
+          $age_or = 'OR';
+        }
+        $where .= ')';
       }
       
       if(!empty($bib_hits_all)) {
@@ -376,6 +389,7 @@ class locum_client extends locum {
       $sql['loc'] = 'SELECT DISTINCT loc_code, COUNT(loc_code) AS loc_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY loc_code ORDER BY loc_code_sum DESC';
       $sql['lang'] = 'SELECT DISTINCT lang, COUNT(lang) AS lang_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY lang ORDER BY lang_sum DESC';
       $sql['pub_year'] = 'SELECT DISTINCT pub_year, COUNT(pub_year) AS pub_year_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY pub_year ORDER BY pub_year DESC';
+      $sql['pub_decade'] = 'SELECT DISTINCT pub_decade, COUNT(pub_decade) AS pub_decade_sum FROM locum_facet_heap ' . $where_str . ' GROUP BY pub_decade ORDER BY pub_decade DESC';
 
       foreach ($sql AS $fkey => $fquery) {
         $tmp_res =& $db->query($fquery);
@@ -384,14 +398,17 @@ class locum_client extends locum {
           if ($values[0] && $values[1]) { $result[$fkey][$values[0]] = $values[1]; }
         }
       }
-      
+
       // Create non-distinct facets for age
       foreach ($this->locum_config['ages'] as $age_code => $age_name) {
         $sql = "SELECT COUNT(bnum) as age_sum FROM locum_facet_heap $where_str AND ages LIKE '%$age_code%'";
         $res =& $db->query($sql);
-        $result['ages'][$age_code] = $res->fetchOne();
+        $age_count = $res->fetchOne();
+        if ($age_count) {
+          $result['ages'][$age_code] = $age_count;
+        }
       }
-      
+
       // Create facets from availability cache
       $sql = "SELECT COUNT(bnum) as avail_sum FROM locum_availability $where_str AND locations != ''";
       $res =& $db->query($sql);

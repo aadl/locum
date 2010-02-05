@@ -1,39 +1,42 @@
 -- phpMyAdmin SQL Dump
--- version 2.9.1.1-Debian-10
+-- version 2.11.8.1deb5+lenny3
 -- http://www.phpmyadmin.net
--- 
+--
 -- Host: localhost
--- Generation Time: Dec 28, 2009 at 11:25 AM
--- Server version: 5.0.32
--- PHP Version: 5.2.0-8+etch15
--- 
+-- Generation Time: Feb 05, 2010 at 05:14 PM
+-- Server version: 5.0.51
+-- PHP Version: 5.2.6-1+lenny4
+
+SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
+
+--
 -- Database: `scas`
--- 
+--
 
 -- --------------------------------------------------------
+
 
 CREATE DATABASE IF NOT EXISTS `scas`;
 USE scas;
 
--- 
+--
 -- Table structure for table `locum_availability`
--- 
+--
 
 CREATE TABLE IF NOT EXISTS `locum_availability` (
   `bnum` int(12) unsigned NOT NULL,
-  `ages` varchar(128) default NULL,
-  `locations` varchar(128) default NULL,
-  `available` blob NOT NULL,
+  `ages` varchar(128) NOT NULL,
+  `locations` varchar(128) NOT NULL,
+  `available` text NOT NULL,
   `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`bnum`),
-  KEY `timestamp` (`timestamp`)
+  PRIMARY KEY  (`bnum`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 -- --------------------------------------------------------
 
--- 
+--
 -- Table structure for table `locum_bib_items`
--- 
+--
 
 CREATE TABLE IF NOT EXISTS `locum_bib_items` (
   `bnum` int(12) NOT NULL,
@@ -56,6 +59,7 @@ CREATE TABLE IF NOT EXISTS `locum_bib_items` (
   `loc_code` char(7) NOT NULL,
   `mat_code` char(7) NOT NULL,
   `cover_img` char(254) default NULL,
+  `download_link` text,
   `modified` datetime NOT NULL,
   `bib_created` date NOT NULL,
   `bib_lastupdate` date NOT NULL,
@@ -72,9 +76,9 @@ CREATE TABLE IF NOT EXISTS `locum_bib_items` (
 
 -- --------------------------------------------------------
 
--- 
+--
 -- Table structure for table `locum_bib_items_subject`
--- 
+--
 
 CREATE TABLE IF NOT EXISTS `locum_bib_items_subject` (
   `bnum` int(12) NOT NULL,
@@ -85,9 +89,9 @@ CREATE TABLE IF NOT EXISTS `locum_bib_items_subject` (
 
 -- --------------------------------------------------------
 
--- 
+--
 -- Table structure for table `locum_holds_count`
--- 
+--
 
 CREATE TABLE IF NOT EXISTS `locum_holds_count` (
   `bnum` int(12) NOT NULL,
@@ -96,25 +100,25 @@ CREATE TABLE IF NOT EXISTS `locum_holds_count` (
   `hold_count_year` int(6) NOT NULL default '0',
   `hold_count_total` int(6) NOT NULL default '0',
   PRIMARY KEY  (`bnum`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 -- --------------------------------------------------------
 
--- 
+--
 -- Table structure for table `locum_holds_placed`
--- 
+--
 
 CREATE TABLE IF NOT EXISTS `locum_holds_placed` (
   `bnum` int(12) NOT NULL,
   `hold_date` date NOT NULL,
   KEY `bnum` (`bnum`,`hold_date`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 -- --------------------------------------------------------
 
--- 
+--
 -- Table structure for table `locum_syndetics_links`
--- 
+--
 
 CREATE TABLE IF NOT EXISTS `locum_syndetics_links` (
   `isbn` char(32) NOT NULL,
