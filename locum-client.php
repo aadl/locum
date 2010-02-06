@@ -56,18 +56,34 @@ class locum_client extends locum {
     
     $cl->SetServer($this->locum_config['sphinx_config']['server_addr'], (int) $this->locum_config['sphinx_config']['server_port']);
 
-    // As always, defaults to 'keyword'
-    
+    // Defaults to 'keyword', non-boolean
     $bool = FALSE;
     $cl->SetMatchMode(SPH_MATCH_ALL);
+    
     if(!$term) {
+      // Searches for everything (usually for browsing purposes--Hot/New Items, etc..)
       $cl->SetMatchMode(SPH_MATCH_ANY); 
     } else {
-      if(preg_match("/ \| /i",$term) || preg_match("/ \-/i",$term) || preg_match("/ \!/i",$term)) { $cl->SetMatchMode(SPH_MATCH_BOOLEAN); $bool = TRUE; }
-      if(preg_match("/ OR /i",$term)) { $cl->SetMatchMode(SPH_MATCH_BOOLEAN); $term = preg_replace('/ OR /i',' | ',$term); $bool = TRUE; }
-      if(preg_match("/\"/i",$term) || preg_match("/\@/i",$term)) { $cl->SetMatchMode(SPH_MATCH_EXTENDED2); $bool = TRUE; }
+      
+      // Is it a boolean search?
+      if(preg_match("/ \| /i", $term) || preg_match("/ \-/i", $term) || preg_match("/ \!/i", $term)) {
+        $cl->SetMatchMode(SPH_MATCH_BOOLEAN); 
+        $bool = TRUE;
+      }
+      if(preg_match("/ OR /i", $term)) {
+        $cl->SetMatchMode(SPH_MATCH_BOOLEAN);
+        $term = preg_replace('/ OR /i',' | ',$term);
+        $bool = TRUE;
+      }
+      
+      // Is it a phrase search?
+      if(preg_match("/\"/i", $term) || preg_match("/\@/i", $term)) {
+        $cl->SetMatchMode(SPH_MATCH_EXTENDED2);
+        $bool = TRUE;
+      }
     }
     
+    // Set up for the various search types
     switch ($type) {
       case 'author':
         $cl->SetFieldWeights(array('author' => 50, 'addl_author' => 30));
@@ -198,8 +214,8 @@ class locum_client extends locum {
       $forcedchange = 'yes';
     }
     
+    // Paging/browsing through the result set.
     $cl->SetLimits((int) $offset, (int) $limit);
-
 
     // And finally.... we search.
     $sph_res = $cl->Query($term, $idx);
@@ -224,7 +240,6 @@ class locum_client extends locum {
     }
     
     // Limit list to available
-    
     if ($limit_available && $final_result_set['num_hits']) {
       $limit_available = strval($limit_available);
       // remove bibs from full list that we *know* are unavailable
@@ -308,17 +323,17 @@ class locum_client extends locum {
       
       // Pub. Decade
       if ($facet_args['facet_decade']) {
-        $where .= ' AND pub_year IN (' . implode(', ', $facet_args['facet_decade']) . ')';
+        $where .= ' AND pub_decade IN (' . implode(', ', $facet_args['facet_decade']) . ')';
       }
       
       // Ages
       if ($facet_args['age']) {
         $where .= ' AND (';
-        $age_or = '';
+        $age_and = '';
         foreach ($facet_args['age'] as $facet_age) {
           $facet_age_val = $db->quote($facet_age, 'text');
-          $where .= "$age_or ages LIKE '%" . $facet_age . "%' ";
-          $age_or = 'OR';
+          $where .= "$age_and ages LIKE '%" . $facet_age . "%' ";
+          $age_and = 'AND';
         }
         $where .= ')';
       }
@@ -347,6 +362,7 @@ class locum_client extends locum {
       foreach ($init_bib_arr as $init_bib) {
         // Get availability
         $init_bib['availability'] = self::get_item_status($init_bib['bnum']);
+        // Clean up the Stdnum
         $init_bib['stdnum'] = preg_replace('/[^\d]/','', $init_bib['stdnum']);
         $bib_reference_arr[(string) $init_bib['bnum']] = $init_bib;
       }
