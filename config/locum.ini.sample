@@ -112,6 +112,7 @@ skip_avail                = "3, n, x"
 ;       SELECT DISTINCT(loc_code) FROM bib_items;
 ; and use those results as a starting point.
 ; Do one-per-line.  Codes ARE case sensitive.
+; Note, that these are BIB LEVEL locations, not item level locations.
 [locations]
 a                         = "Adult"
 adabi                     = "Adult Playaway Biographies"
@@ -140,8 +141,17 @@ r                         = "Adult Reference"
 t                         = "Tech Center Reference"
 techs                     = "Tech Services Reference"
 
+[branches]
+
+
+; These are location-specific views of your collection.  These could be, for instance,
+; considered your 'branches'.  Esentially, you are going to specify a branch code and
+; provide a comma-separated list of all the ITEM LEVEL location codes associated with that
+; branch.
+[branch_bundles]
+
 ; These let you define "collections" within the catalog.  Useful for narrowing
-; searches to, say, the children's collection.  These are sometimes called "scopes"
+; searches to, say, a named gift collection,  These are sometimes called "scopes"
 ; this is a name-to-values format.  See Examples.
 [collections]
 Adult                     = "a, adabi, adadm, adaf, adanf, asvff, asvfn, attg, attlp, azamh, bagbk, bocd, cd, dvd, libst, magar, r"
@@ -159,7 +169,6 @@ no_search                 = "t, techs"
 adult                     = "Adult"
 teen                      = "Teen"
 child                     = "Children"
-all                       = "All Ages"
 
 ; These will probably need to come from your ILS.  The III connector supplies you with a script
 ; to help you parse and format this information, others may as well.

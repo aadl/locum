@@ -241,9 +241,13 @@ class locum_client extends locum {
     
     // Limit list to available
     if ($limit_available && $final_result_set['num_hits']) {
-      $limit_available = strval($limit_available);
-      // remove bibs from full list that we *know* are unavailable
+      
+      $limit_available = trim(strval($limit_available));
+      
+      // Remove bibs that we know are not available
       $cache_cutoff = date("Y-m-d H:i:00", time() - 3600); // 1 hour
+      
+      // Remove bibs that are not in this location
       if (array_key_exists($limit_available, $this->locum_config['locations'])) {
         // if location passed in, filter out by that location, otherwise just the ones that are empty
         $location_sql = "NOT LIKE '%$limit_available%'";
@@ -264,7 +268,7 @@ class locum_client extends locum {
       $available_count = 0;
       foreach ($bib_hits_all as $key => $bib_hit) {
         $bib_avail = self::get_item_status($bib_hit);
-        $available = (array_key_exists($limit_available, $this->locum_config['locations']) ? is_array($bib_avail['locations'][$limit_available]) : ($bib_avail['total'] > 0));
+        $available = (array_key_exists($limit_available, $this->locum_config['locations']) ? is_array($bib_avail['locations']) : ($bib_avail['total'] > 0));
         if ($available) {
           $available_count++;
           if ($available_count > $offset) {
@@ -507,11 +511,13 @@ class locum_client extends locum {
     }
     
     if ($this->locum_config['avail_cache']['cache']) {
+      $bib_item = self::get_bib_item($bnum);
       // Update Cache
-      $avail_blob = serialize($result);
+      $avail_ser = serialize($result);
       $ages = count($result['ages']) ? "'" . implode(',', $result['ages']) . "'" : 'NULL';
       $locs = count($loc_codes) ? "'" . implode(',', $loc_codes) . "'" : 'NULL';
-      $sql = "REPLACE INTO locum_availability (bnum, ages, locations, available) VALUES (:bnum, $ages, $locs, '$avail_blob')";
+      $bib_loc = $bib_item['loc_code'] ? "'" . $bib_item['loc_code'] . "'" : 'NULL';
+      $sql = "REPLACE INTO locum_availability (bnum, ages, bib_loc, locations, available) VALUES (:bnum, $ages, $bib_loc, $locs, '$avail_ser')";
       $statement = $db->prepare($sql, array('integer'));
       $dbr = $statement->execute(array('bnum' => $bnum));
       if (PEAR::isError($dbr) && $this->cli) {
