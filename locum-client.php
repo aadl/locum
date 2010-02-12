@@ -501,7 +501,7 @@ class locum_client extends locum {
         if ($result['nextdue'] == 0 || $result['nextdue'] > $item['due']) {
           $result['nextdue'] = $item['due'];
         }
-        if (!in_array($item['loc_code'], $loc_codes)) {
+        if (!in_array($item['loc_code'], $loc_codes) && trim($item['loc_code'])) {
           $loc_codes[] = $item['loc_code'];
         }
         if ($item['avail']) {

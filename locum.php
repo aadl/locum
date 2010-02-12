@@ -100,6 +100,23 @@ class locum {
   }
   
   /**
+   * Checks $query_value against $ini_value to see a) if its a regex or csv match.
+   * It will then return TRUE if it is a match or FALSE if not.
+   * 
+   * @param string $ini_value INI file value
+   * @param string $query_value Value to be matched against $ini_value
+   * @return boolean TRUE = match / FALSE = no match
+   */
+  public function match_ini_value($ini_value, $query_value) {
+    if (preg_match('/^\//', $ini_value)) {
+      if (preg_match($ini_value, $query_value)) { return TRUE; }
+    } else {
+      if (in_array($query_value, locum::csv_parser($match_crit))) { return TRUE; }
+    }
+    return FALSE;
+  }
+  
+  /**
    * Returns a CRC32 value that is compatible with MySQL (>=4.1) CRC32() function
    *
    * @param string $str String to be converted

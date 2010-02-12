@@ -2,16 +2,18 @@
 
 ; Basic setup
 [locum_config]
-dsn_file      	          = "/usr/local/etc/locum.php"
-log_file                  = "/usr/local/var/log/locum.log"
-run_quiet                 = FALSE
+dsn_file				          = "/usr/local/etc/locum.php"
+log_file		        	  	= "/usr/local/var/log/locum.log"
+run_quiet		          		= FALSE
+multi_branch	        		= FALSE
+consortia		          		= FALSE
 
 ; Sphinx information
 ; bin_path is location of indexer binary
 [sphinx_config]
 bin_path                  = "/usr/local/sphinx/bin"
-api_path                  = "/usr/local/sphinx/lib"
-server_addr               = "localhost"
+api_path			          	= "/usr/local/sphinx/lib"
+server_addr		      	  	= "localhost"
 server_port               = 3312
 pubkey_path               = "/usr/local/etc/sphinx_key.pub"
 privkey_path              = "/usr/local/etc/sphinx_key"
@@ -106,69 +108,55 @@ electronics               = "e"
 download                  = "x"
 skip_avail                = "3, n, x"
 
-; This section allows you to define your location codes into human-readable form.
-; These will resolve as key-to-value pairs.  The harvest functionality within Locum
-; does not depend on this, you you might want do your harvest, then run the query:
-;       SELECT DISTINCT(loc_code) FROM bib_items;
-; and use those results as a starting point.
-; Do one-per-line.  Codes ARE case sensitive.
-; Note, that these are BIB LEVEL locations, not item level locations.
-[locations]
-a                         = "Adult"
-adabi                     = "Adult Playaway Biographies"
-adadm                     = "Adult Playaway Detective Mysteries"
-adaf                      = "Adult Playaway Fiction"
-adanf                     = "Adult Playaway Nonfiction"
-asvff                     = "DVD Foreign Film"
-asvfn                     = "DVD Foreign Film Nonfiction"
-attg                      = "Tech Center - GPS"
-attlp                     = "Tech Center - Projector"
-azamh                     = "Adult Holiday Music"
-bagbk                     = "Book Bag"
-bocd                      = "Books on CD"
-cd                        = "CDs"
-dvd                       = "DVDs"
-hs                        = "Darien Historical Society"
-j                         = "Children's"
-jsamp                     = "Children's Playaway"
-jsbjp                     = "Children's Intermediate Picture Books"
-jstt                      = "Children's Transmitters"
-libst                     = "Downloadable Audio Book"
-magar                     = "Adult Magazines"
-multi                     = "Multiple Locations"
-order                     = "On order"
-r                         = "Adult Reference"
-t                         = "Tech Center Reference"
-techs                     = "Tech Services Reference"
-
-[branches]
-
-
-; These are location-specific views of your collection.  These could be, for instance,
-; considered your 'branches'.  Esentially, you are going to specify a branch code and
-; provide a comma-separated list of all the ITEM LEVEL location codes associated with that
-; branch.
-[branch_bundles]
-
-; These let you define "collections" within the catalog.  Useful for narrowing
-; searches to, say, a named gift collection,  These are sometimes called "scopes"
-; this is a name-to-values format.  See Examples.
-[collections]
-Adult                     = "a, adabi, adadm, adaf, adanf, asvff, asvfn, attg, attlp, azamh, bagbk, bocd, cd, dvd, libst, magar, r"
-Children                  = "j, jsamp, jsbjp, jstt"
-Historical Society        = "hs"
-
-; These settings allow you to limit and determine how records behave within your
-; applications.  These settings change how locum behaves during searches and transactions
-[location_limits]
-no_request                = "libst, magar, r, t, techs"
-no_search                 = "t, techs"
-
 ; Age Groups
 [ages]
 adult                     = "Adult"
 teen                      = "Teen"
 child                     = "Children"
+
+; These are pairings of branch codes with full branch names.  These settings will
+; parsed if you enabled the "multi_branch" setting in locum.ini.
+; Branch codes can are arbitrary and can be anything within the context of locum,
+; but your library probably already has branch codes in use and it would make sense
+; to use those codes here to avoid confusion.  Otherwise, you can just make them up.
+[branches]
+main                      = "Main Branch"
+
+; These are pairings of consortia member codes with their full names--usually a
+; library or library system.  In other words, all members of a consortia.
+; These settings will parsed if you enabled the "consortia" setting in locum.ini.
+; Consortia member codes are arbitrary and can be anything within the context of
+; locum, but it may be that your consortium already employs some kind of member
+; code, in which case, it would make sense to use it here.  Otherwise, you can
+; just make them up.
+[consortia_members]
+darpl                     = Darien Library
+
+; This is where you assign branches to consortia members.  You will pair the
+; consortia_member codes from [consortia_members] with branch code values
+; from the [branches] section.
+; Essentially, you are going to specify a consortia_member code and provide
+; either a regular expression match (enclosed in slashes - //) or a comma-
+; separated list of all the branches belonging to a consortia member.
+; member_code             = "/[regex]/" or "branch1,branch2,branch3,..."
+[consortia_member_assignments]
+darpl                     = "main"
+
+; These let you define "collections" within the catalog.  Useful for narrowing
+; searches to, say, a named gift collection,  These are sometimes called "scopes"
+; These are special "views" of the collection that reside outside the
+; Library > Branch > Consortia hierarchy.
+; this is a name-to-values format.  See Examples.
+[collections]
+Adult					            = "a, adabi, adadm, adaf, adanf, asvff, asvfn, attg, attlp, azamh, bagbk, bocd, cd, dvd, libst, magar, r"
+Children				          = "j, jsamp, jsbjp, jstt"
+Historical Society	    	= "hs"
+
+; These settings allow you to limit and determine how records behave within your
+; applications.  These settings change how locum behaves during searches and transactions
+[location_limits]
+no_request				        = "libst, magar, r, t, techs"
+no_search			          	= "t, techs"
 
 ; These will probably need to come from your ILS.  The III connector supplies you with a script
 ; to help you parse and format this information, others may as well.

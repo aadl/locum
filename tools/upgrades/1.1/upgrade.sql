@@ -1,12 +1,24 @@
 USE scas;
 
+DROP TABLE IF EXISTS `locum_availability`;
 CREATE TABLE IF NOT EXISTS `locum_availability` (
   `bnum` int(12) unsigned NOT NULL,
-  `ages` varchar(128) NOT NULL,
-  `locations` varchar(128) NOT NULL,
-  `available` text NULL,
+  `ages` char(64) NOT NULL,
+  `locations` text,
+  `available` text,
   `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`bnum`)
+  PRIMARY KEY  (`bnum`),
+  KEY `timestamp` (`timestamp`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+
+DROP TABLE IF EXISTS `locum_avail_branches`;
+CREATE TABLE IF NOT EXISTS `locum_avail_branches` (
+  `bnum` int(12) NOT NULL,
+  `branch` char(12) NOT NULL,
+  `count_avail` int(6) NOT NULL default '0',
+  `count_total` int(6) NOT NULL default '0',
+  KEY `bnum` (`bnum`,`branch`,`count_avail`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `locum_syndetics_links` (
@@ -24,14 +36,8 @@ ALTER TABLE `locum_holds_placed` CONVERT TO CHARACTER SET utf8 COLLATE utf8_gene
 
 ALTER TABLE `locum_bib_items` ADD `upc` BIGINT UNSIGNED ZEROFILL NOT NULL AFTER `stdnum`;
 ALTER TABLE `locum_bib_items` ADD `download_link` TEXT NULL AFTER `cover_img`;
-ALTER TABLE `locum_availability` ADD `bib_loc` CHAR( 7 ) NOT NULL AFTER `ages`;
-ALTER TABLE `locum_availability` ADD INDEX ( `bib_loc` );
-ALTER TABLE `locum_availability` ADD INDEX ( `timestamp` );
 
 ALTER TABLE `insurge_index` CHANGE `bnum` `bnum` INT( 12 ) NOT NULL;
 ALTER TABLE `locum_bib_items` CHANGE `bnum` `bnum` INT( 12 ) NOT NULL;
 ALTER TABLE `locum_bib_items_subject` CHANGE `bnum` `bnum` INT( 12 ) NOT NULL;
 ALTER TABLE `locum_facet_heap` CHANGE `bnum` `bnum` INT( 12 ) NOT NULL;
-ALTER TABLE `locum_availability` CHANGE `available` `available` TEXT NULL;
-ALTER TABLE `locum_availability` CHANGE `ages` `ages` CHAR( 32 ) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL;
-ALTER TABLE `locum_availability` CHANGE `locations` `locations` CHAR( 128 ) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL;
