@@ -517,7 +517,7 @@ class locum_client extends locum {
       $ages = count($result['ages']) ? "'" . implode(',', $result['ages']) . "'" : 'NULL';
       $locs = count($loc_codes) ? "'" . implode(',', $loc_codes) . "'" : 'NULL';
       $bib_loc = $bib_item['loc_code'] ? "'" . $bib_item['loc_code'] . "'" : 'NULL';
-      $sql = "REPLACE INTO locum_availability (bnum, ages, bib_loc, locations, available) VALUES (:bnum, $ages, $bib_loc, $locs, '$avail_ser')";
+      $sql = "REPLACE INTO locum_availability (bnum, available) VALUES (:bnum, $ages, '$avail_ser')";
       $statement = $db->prepare($sql, array('integer'));
       $dbr = $statement->execute(array('bnum' => $bnum));
       if (PEAR::isError($dbr) && $this->cli) {

@@ -3,8 +3,6 @@ USE scas;
 DROP TABLE IF EXISTS `locum_availability`;
 CREATE TABLE IF NOT EXISTS `locum_availability` (
   `bnum` int(12) unsigned NOT NULL,
-  `ages` char(64) NOT NULL,
-  `locations` text,
   `available` text,
   `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   PRIMARY KEY  (`bnum`),
@@ -20,6 +18,24 @@ CREATE TABLE IF NOT EXISTS `locum_avail_branches` (
   `count_total` int(6) NOT NULL default '0',
   KEY `bnum` (`bnum`,`branch`,`count_avail`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `locum_avail_locations`;
+CREATE TABLE IF NOT EXISTS `locum_avail_locations` (
+`bnum` int(12) NOT NULL ,
+`location` char(12) NOT NULL ,
+`count_avail` int(6) NOT NULL default '0',
+`count_total` int(6) NOT NULL default '0',
+KEY `bnum` (`bnum` , `location` , `count_avail`)
+) ENGINE = MYISAM DEFAULT CHARSET = utf8;
+
+DROP TABLE IF EXISTS `locum_avail_ages`;
+CREATE TABLE IF NOT EXISTS `locum_avail_ages` (
+`bnum` int(12) NOT NULL ,
+`age` char(12) NOT NULL ,
+`count_avail` int(6) NOT NULL default '0',
+`count_total` int(6) NOT NULL default '0',
+KEY `bnum` (`bnum` , `age` , `count_avail`)
+) ENGINE = MYISAM DEFAULT CHARSET = utf8;
 
 CREATE TABLE IF NOT EXISTS `locum_syndetics_links` (
   `isbn` char(32) NOT NULL,

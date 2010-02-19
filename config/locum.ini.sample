@@ -120,7 +120,9 @@ child                     = "Children"
 ; but your library probably already has branch codes in use and it would make sense
 ; to use those codes here to avoid confusion.  Otherwise, you can just make them up.
 [branches]
-main                      = "Main Branch"
+dl                      = "Darien Library"
+hs                      = "Darien Historical Society"
+nc                      = "Darien Nature Center"
 
 ; These are pairings of consortia member codes with their full names--usually a
 ; library or library system.  In other words, all members of a consortia.
@@ -130,7 +132,7 @@ main                      = "Main Branch"
 ; code, in which case, it would make sense to use it here.  Otherwise, you can
 ; just make them up.
 [consortia_members]
-darpl                     = Darien Library
+darpl                     = "Darien Library System"
 
 ; This is where you assign branches to consortia members.  You will pair the
 ; consortia_member codes from [consortia_members] with branch code values
@@ -140,13 +142,17 @@ darpl                     = Darien Library
 ; separated list of all the branches belonging to a consortia member.
 ; member_code             = "/[regex]/" or "branch1,branch2,branch3,..."
 [consortia_member_assignments]
-darpl                     = "main"
+darpl                     = "dl,hs,nc"
 
 ; These let you define "collections" within the catalog.  Useful for narrowing
 ; searches to, say, a named gift collection,  These are sometimes called "scopes"
 ; These are special "views" of the collection that reside outside the
 ; Library > Branch > Consortia hierarchy.
+; The values for these parameters will be the item-level location codes provided
+; up from the connector.  You may need to check with your cataloging staff
+; to find out what these are.
 ; this is a name-to-values format.  See Examples.
+; ****** Currently unimplemented ******
 [collections]
 Adult					            = "a, adabi, adadm, adaf, adanf, asvff, asvfn, attg, attlp, azamh, bagbk, bocd, cd, dvd, libst, magar, r"
 Children				          = "j, jsamp, jsbjp, jstt"
