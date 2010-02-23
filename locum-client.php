@@ -176,6 +176,7 @@ class locum_client extends locum {
         break;
       default:
         if ($type == 'title') {
+          // We get better results in title matches if we also rank by title length
           $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
         } else {
           $cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC, titlelength ASC');
@@ -208,7 +209,7 @@ class locum_client extends locum {
     $sph_res_all = $cl->Query($term, $idx); // Grab all the data for the facetizer
     
     if(empty($sph_res_all['matches']) && $bool == FALSE && $term != "*" && $type != "tags") {
-      $term = '"'.$term.'"/1';
+      $term = '"' . $term . '"/1';
       $cl->SetMatchMode(SPH_MATCH_EXTENDED2);
       $sph_res_all = $cl->Query($term, $idx);
       $forcedchange = 'yes';
@@ -245,22 +246,23 @@ class locum_client extends locum {
       $limit_available = trim(strval($limit_available));
       
       // Remove bibs that we know are not available
-      $cache_cutoff = date("Y-m-d H:i:00", time() - 3600); // 1 hour
+      $cache_cutoff = date("Y-m-d H:i:00", time() - (60 * $this->locum_config['avail_cache']['cache_cutoff']));
       
       // Remove bibs that are not in this location
       if (array_key_exists($limit_available, $this->locum_config['locations'])) {
-        // if location passed in, filter out by that location, otherwise just the ones that are empty
-        $location_sql = "NOT LIKE '%$limit_available%'";
-      } else {
-        $location_sql = "= ''";
+        
+        $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+        $utfprep = $db->query($utf);
+        
+        $sql = "SELECT DISTINCT(bnum) FROM locum_avail_branches WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND branch = '$limit_available' AND count_avail > 0";
+        $init_result =& $db->query($sql);
+        $avail_bibs = $init_result->fetchCol();
       }
       
-      $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
-      $utfprep = $db->query($utf);
+
       
       $sql = "SELECT bnum FROM locum_availability WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND locations $location_sql AND timestamp > '$cache_cutoff'";
-      $init_result =& $db->query($sql);
-      $unavail_bibs = $init_result->fetchCol();
+
       $bib_hits_all = array_values(array_diff($bib_hits_all,$unavail_bibs));
 
       // rebuild from the full list
@@ -488,40 +490,79 @@ class locum_client extends locum {
     $result['locations'] = array();
     $result['callnums'] = array();
     $result['ages'] = array();
+    $result['branches'] = array();
     $loc_codes = array();
     if (count($status['items'])) {
       foreach ($status['items'] as $item) {
+        // Parse Ages
         $result['locations'][$item['loc_code']][$item['age']]++;
-        if (!in_array($item['age'], $result['ages'])) {
-          $result['ages'][] = $item['age'];
+        if ($result['ages'][$item['age']]) {
+          $result['ages'][$item['age']]['avail'] = $result['ages'][$item['age']]['avail'] + $item['avail'];
+          $result['ages'][$item['age']]['total']++;
+        } else {
+          $result['ages'][$item['age']]['avail'] = $item['avail'];
+          $result['ages'][$item['age']]['total'] = 1;
         }
+        // Parse Branches
+        if (count($result['branches'][$item['branch']])) {
+          $result['branches'][$item['branch']]['avail'] = $result['branches'][$item['branch']]['avail'] + $item['avail'];
+          $result['branches'][$item['branch']]['total']++;
+        } else {
+          $result['branches'][$item['branch']]['avail'] = $item['avail'];
+          $result['branches'][$item['branch']]['total'] = 1;
+        }
+        // Parse Callnums
         if (!in_array($item['callnum'], $result['callnums'])) {
           $result['callnums'][] = $item['callnum'];
         }
+        // Determine next item due date
         if ($result['nextdue'] == 0 || $result['nextdue'] > $item['due']) {
           $result['nextdue'] = $item['due'];
         }
+        // Parse location code
         if (!in_array($item['loc_code'], $loc_codes) && trim($item['loc_code'])) {
           $loc_codes[] = $item['loc_code'];
         }
+        // Tally availability
         if ($item['avail']) {
           $result['avail'] = $result['avail'] + $item['avail'];
         }
       }
     }
     
-    if ($this->locum_config['avail_cache']['cache']) {
-      $bib_item = self::get_bib_item($bnum);
-      // Update Cache
-      $avail_ser = serialize($result);
-      $ages = count($result['ages']) ? "'" . implode(',', $result['ages']) . "'" : 'NULL';
-      $locs = count($loc_codes) ? "'" . implode(',', $loc_codes) . "'" : 'NULL';
-      $bib_loc = $bib_item['loc_code'] ? "'" . $bib_item['loc_code'] . "'" : 'NULL';
-      $sql = "REPLACE INTO locum_availability (bnum, available) VALUES (:bnum, $ages, '$avail_ser')";
-      $statement = $db->prepare($sql, array('integer'));
-      $dbr = $statement->execute(array('bnum' => $bnum));
-      if (PEAR::isError($dbr) && $this->cli) {
-        echo "DB connection failed... " . $dbr->getMessage() . "\n";
+    // Cache the result
+    $bib_item = self::get_bib_item($bnum);
+    // Update Cache
+    $avail_ser = serialize($result);
+    $ages = count($result['ages']) ? "'" . implode(',', $result['ages']) . "'" : 'NULL';
+    $locs = count($loc_codes) ? "'" . implode(',', $loc_codes) . "'" : 'NULL';
+    $bib_loc = $bib_item['loc_code'] ? "'" . $bib_item['loc_code'] . "'" : 'NULL';
+    $sql = "REPLACE INTO locum_availability (bnum, available) VALUES (:bnum, :available)";
+    $statement = $db->prepare($sql, array('integer', 'text'));
+    $dbr = $statement->execute(array('bnum' => $bnum, 'available' => $avail_ser));
+    if (PEAR::isError($dbr) && $this->cli) {
+      echo "DB connection failed... " . $dbr->getMessage() . "\n";
+    }
+    $statement->Free();
+    
+    // Store age cache
+    $db->query("DELETE FROM locum_avail_ages WHERE bnum = '$bnum'");
+    if (count($result['ages'])) {
+      $sql = "INSERT INTO locum_avail_ages (bnum, age, count_avail, count_total, timestamp) VALUES (:bnum, :age, :count_avail, :count_total, NOW())";
+      $statement = $db->prepare($sql, array('integer', 'text', 'integer', 'integer'));
+      foreach ($result['ages'] as $age => $age_info) {
+        $dbr = $statement->execute(array('bnum' => $bnum, 'age' => $age, 'count_avail' => $age_info['avail'], 'count_total' => $age_info['total']));
+      }
+      $statement->Free();
+    }
+    
+    // Store branch info cache
+    $db->query("DELETE FROM locum_avail_branches WHERE bnum = '$bnum'");
+    if (count($result['branches'])) {
+      $sql = "INSERT INTO locum_avail_branches (bnum, branch, count_avail, count_total, timestamp) VALUES (:bnum, :branch, :count_avail, :count_total, NOW())";
+      $statement = $db->prepare($sql, array('integer', 'text', 'integer', 'integer'));
+      foreach ($result['branches'] as $branch => $branch_info) {
+        $dbr = $statement->execute(array('bnum' => $bnum, 'branch' => $branch, 'count_avail' => $branch_info['avail'], 'count_total' => $branch_info['total']));
       }
       $statement->Free();
     }

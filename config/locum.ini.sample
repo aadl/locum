@@ -5,8 +5,6 @@
 dsn_file				          = "/usr/local/etc/locum.php"
 log_file		        	  	= "/usr/local/var/log/locum.log"
 run_quiet		          		= FALSE
-multi_branch	        		= FALSE
-consortia		          		= FALSE
 
 ; Sphinx information
 ; bin_path is location of indexer binary
@@ -15,6 +13,7 @@ bin_path                  = "/usr/local/sphinx/bin"
 api_path			          	= "/usr/local/sphinx/lib"
 server_addr		      	  	= "localhost"
 server_port               = 3312
+; Only if you need to ssh off to another server
 pubkey_path               = "/usr/local/etc/sphinx_key.pub"
 privkey_path              = "/usr/local/etc/sphinx_key"
 key_pass                  = "yoursecret"
