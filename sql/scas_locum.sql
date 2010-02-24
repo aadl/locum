@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: localhost
--- Generation Time: Feb 05, 2010 at 05:14 PM
+-- Generation Time: Feb 24, 2010 at 05:29 PM
 -- Server version: 5.0.51
 -- PHP Version: 5.2.6-1+lenny4
 
@@ -19,17 +19,48 @@ SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
 CREATE DATABASE IF NOT EXISTS `scas`;
 USE scas;
 
+-- --------------------------------------------------------
+
 --
 -- Table structure for table `locum_availability`
 --
 
 CREATE TABLE IF NOT EXISTS `locum_availability` (
   `bnum` int(12) unsigned NOT NULL,
-  `ages` varchar(128) NOT NULL,
-  `locations` varchar(128) NOT NULL,
-  `available` text NOT NULL,
+  `available` text,
   `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`bnum`)
+  PRIMARY KEY  (`bnum`),
+  KEY `timestamp` (`timestamp`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `locum_avail_ages`
+--
+
+CREATE TABLE IF NOT EXISTS `locum_avail_ages` (
+  `bnum` int(12) NOT NULL,
+  `age` char(12) NOT NULL,
+  `count_avail` int(6) NOT NULL default '0',
+  `count_total` int(6) NOT NULL default '0',
+  `timestamp` datetime NOT NULL,
+  KEY `bnum` (`bnum`,`age`,`count_avail`,`timestamp`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `locum_avail_branches`
+--
+
+CREATE TABLE IF NOT EXISTS `locum_avail_branches` (
+  `bnum` int(12) NOT NULL,
+  `branch` char(12) NOT NULL,
+  `count_avail` int(6) NOT NULL default '0',
+  `count_total` int(6) NOT NULL default '0',
+  `timestamp` datetime NOT NULL,
+  KEY `bnum` (`bnum`,`branch`,`count_avail`,`timestamp`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 -- --------------------------------------------------------
