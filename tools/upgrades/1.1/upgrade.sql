@@ -16,26 +16,19 @@ CREATE TABLE IF NOT EXISTS `locum_avail_branches` (
   `branch` char(12) NOT NULL,
   `count_avail` int(6) NOT NULL default '0',
   `count_total` int(6) NOT NULL default '0',
-  KEY `bnum` (`bnum`,`branch`,`count_avail`)
+  `timestamp` datetime NOT NULL,
+  KEY `bnum` (`bnum`,`branch`,`count_avail`,`timestamp`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-
-DROP TABLE IF EXISTS `locum_avail_locations`;
-CREATE TABLE IF NOT EXISTS `locum_avail_locations` (
-`bnum` int(12) NOT NULL ,
-`location` char(12) NOT NULL ,
-`count_avail` int(6) NOT NULL default '0',
-`count_total` int(6) NOT NULL default '0',
-KEY `bnum` (`bnum` , `location` , `count_avail`)
-) ENGINE = MYISAM DEFAULT CHARSET = utf8;
 
 DROP TABLE IF EXISTS `locum_avail_ages`;
 CREATE TABLE IF NOT EXISTS `locum_avail_ages` (
-`bnum` int(12) NOT NULL ,
-`age` char(12) NOT NULL ,
-`count_avail` int(6) NOT NULL default '0',
-`count_total` int(6) NOT NULL default '0',
-KEY `bnum` (`bnum` , `age` , `count_avail`)
-) ENGINE = MYISAM DEFAULT CHARSET = utf8;
+  `bnum` int(12) NOT NULL,
+  `age` char(12) NOT NULL,
+  `count_avail` int(6) NOT NULL default '0',
+  `count_total` int(6) NOT NULL default '0',
+  `timestamp` datetime NOT NULL,
+  KEY `bnum` (`bnum`,`age`,`count_avail`,`timestamp`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `locum_syndetics_links` (
   `isbn` char(32) NOT NULL,
