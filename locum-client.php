@@ -208,6 +208,7 @@ class locum_client extends locum {
     $cl->SetLimits(0, 5000, 5000);
     $sph_res_all = $cl->Query($term, $idx); // Grab all the data for the facetizer
     
+    // If original match didn't return any results, try a proximity search
     if(empty($sph_res_all['matches']) && $bool == FALSE && $term != "*" && $type != "tags") {
       $term = '"' . $term . '"/1';
       $cl->SetMatchMode(SPH_MATCH_EXTENDED2);
@@ -241,7 +242,7 @@ class locum_client extends locum {
     }
     
     // Limit list to available
-    if ($limit_available && $final_result_set['num_hits']) {
+    if ($limit_available && $final_result_set['num_hits'] && (array_key_exists($limit_available, $this->locum_config['branches']) || $limit_available == 'any')) {
       
       $limit_available = trim(strval($limit_available));
       
@@ -249,28 +250,38 @@ class locum_client extends locum {
       $cache_cutoff = date("Y-m-d H:i:00", time() - (60 * $this->locum_config['avail_cache']['cache_cutoff']));
       
       // Remove bibs that are not in this location
-      if (array_key_exists($limit_available, $this->locum_config['locations'])) {
-        
-        $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
-        $utfprep = $db->query($utf);
-        
-        $sql = "SELECT DISTINCT(bnum) FROM locum_avail_branches WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND branch = '$limit_available' AND count_avail > 0";
-        $init_result =& $db->query($sql);
-        $avail_bibs = $init_result->fetchCol();
+      $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+      $utfprep = $db->query($utf);
+      
+      $sql = "SELECT bnum, branch, count_avail FROM locum_avail_branches WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND timestamp > '$cache_cutoff'";
+      $init_result =& $db->query($sql);
+      if ($init_result) {
+        $branch_info_cache = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+        $bad_bibs = array();
+        $good_bibs = array();
+        foreach ($branch_info_cache as $item_binfo) {
+          if (($item_binfo['branch'] == $limit_available || $limit_available == 'any') && $item_binfo['count_avail'] > 0) {
+            if (!in_array($item_binfo['bnum'], $good_bibs)) {
+              $good_bibs[] = $item_binfo['bnum'];
+            }
+          } else {
+            $bad_bibs[] = $item_binfo['bnum'];
+          }
+        }
       }
-      
-
-      
-      $sql = "SELECT bnum FROM locum_availability WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND locations $location_sql AND timestamp > '$cache_cutoff'";
-
-      $bib_hits_all = array_values(array_diff($bib_hits_all,$unavail_bibs));
+      $unavail_bibs = array_values(array_diff($bad_bibs, $good_bibs));
+      $bib_hits_all = array_values(array_diff($bib_hits_all, $unavail_bibs));
 
       // rebuild from the full list
       unset($bib_hits);
       $available_count = 0;
       foreach ($bib_hits_all as $key => $bib_hit) {
         $bib_avail = self::get_item_status($bib_hit);
-        $available = (array_key_exists($limit_available, $this->locum_config['locations']) ? is_array($bib_avail['locations']) : ($bib_avail['total'] > 0));
+        if ($limit_available == 'any') {
+          $available = $bib_avail['avail'];
+        } else {
+          $available = $bib_avail['branches'][$limit_available]['avail'];
+        }
         if ($available) {
           $available_count++;
           if ($available_count > $offset) {
@@ -288,11 +299,23 @@ class locum_client extends locum {
       
       // trim out the rest of the array based on *any* cache value
       if(!empty($bib_hits_all)) {
-        $sql = "SELECT bnum FROM locum_availability WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND locations $location_sql";
+        $sql = "SELECT bnum, branch, count_avail FROM locum_avail_branches WHERE bnum IN (" . implode(", ", $bib_hits_all) . ")";
         $init_result =& $db->query($sql);
-        if($init_result){  
-          $unavail_bibs =& $init_result->fetchCol();
-          $bib_hits_all = array_values(array_diff($bib_hits_all,$unavail_bibs));
+        if ($init_result) {
+          $branch_info_cache = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+          $bad_bibs = array();
+          $good_bibs = array();
+          foreach ($branch_info_cache as $item_binfo) {
+            if (($item_binfo['branch'] == $limit_available || $limit_available == 'any') && $item_binfo['count_avail'] > 0) {
+              if (!in_array($item_binfo['bnum'], $good_bibs)) {
+                $good_bibs[] = $item_binfo['bnum'];
+              }
+            } else {
+              $bad_bibs[] = $item_binfo['bnum'];
+            }
+          }
+          $unavail_bibs = array_values(array_diff($bad_bibs, $good_bibs));
+          $bib_hits_all = array_values(array_diff($bib_hits_all, $unavail_bibs));
         }
       }
       $final_result_set['num_hits'] = count($bib_hits_all);
@@ -432,13 +455,16 @@ class locum_client extends locum {
       }
 
       // Create facets from availability cache
-      $sql = "SELECT COUNT(bnum) as avail_sum FROM locum_availability $where_str AND locations != ''";
-      $res =& $db->query($sql);
-      $result['avail']['any'] = $res->fetchOne();
-      foreach ($this->locum_config['locations'] as $loc_code => $loc_name) {
-        $sql = "SELECT COUNT(bnum) as avail_sum FROM locum_availability $where_str AND locations LIKE '%$loc_code%'";
+      $result['avail']['any'] = 0;
+      foreach ($this->locum_config['branches'] as $branch_code => $branch_name) {
+        $sql = "SELECT COUNT(bnum) FROM locum_avail_branches $where_str AND branch = '$branch_code' AND count_avail > 0";
         $res =& $db->query($sql);
-        $result['avail'][$loc_code] = $res->fetchOne();
+        $avail_count = $res->fetchOne();
+        if (!$avail_count) { $avail_count = 0; }
+        $result['avail']['any'] = $result['avail']['any'] + $avail_count;
+        if ($avail_count) {
+          $result['avail'][$branch_code] = $avail_count;
+        }
       }
       
       $db->disconnect();
