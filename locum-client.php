@@ -315,10 +315,13 @@ class locum_client extends locum {
             }
           }
           $unavail_bibs = array_values(array_diff($bad_bibs, $good_bibs));
-          $bib_hits_all = array_values(array_diff($bib_hits_all, $unavail_bibs));
+          $bib_hits_all = array_unique(array_values(array_diff($bib_hits_all, $unavail_bibs)));
         }
       }
-      $final_result_set['num_hits'] = count($bib_hits_all);
+      
+      $sql = "SELECT COUNT(DISTINCT(bnum)) FROM locum_avail_branches WHERE bnum IN (" . implode(",", $bib_hits_all) . ") AND count_avail > 0";
+      $res =& $db->query($sql);
+      $final_result_set['num_hits'] = $res->fetchOne();
     }
 
     // Refine by facets
@@ -377,8 +380,11 @@ class locum_client extends locum {
         $init_result =& $db->query($sql2);
         $bib_hits = $init_result->fetchCol();
       }
-      $facet_total = count($bib_hits_all);
-      $final_result_set['num_hits'] = $facet_total;
+      
+
+      
+//      $facet_total = count($bib_hits_all);
+ //     $final_result_set['num_hits'] = $facet_total;
     }
 
     // First, we have to get the values back, unsorted against the Sphinx-sorted array
@@ -427,7 +433,7 @@ class locum_client extends locum {
 
     $db =& MDB2::connect($this->dsn);
     if (count($bib_hits_all)) {
-      $where_str = 'WHERE bnum in (' . implode(",", $bib_hits_all) . ')';
+      $where_str = 'WHERE bnum IN (' . implode(",", $bib_hits_all) . ')';
       
       $sql['mat'] = 'SELECT DISTINCT mat_code, COUNT(mat_code) AS mat_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY mat_code ORDER BY mat_code_sum DESC';
       $sql['series'] = 'SELECT DISTINCT series, COUNT(series) AS series_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY series ORDER BY series ASC';
@@ -457,7 +463,7 @@ class locum_client extends locum {
       // Create facets from availability cache
       $result['avail']['any'] = 0;
       foreach ($this->locum_config['branches'] as $branch_code => $branch_name) {
-        $sql = "SELECT COUNT(bnum) FROM locum_avail_branches $where_str AND branch = '$branch_code' AND count_avail > 0";
+        $sql = "SELECT COUNT(DISTINCT(bnum)) FROM locum_avail_branches $where_str AND branch = '$branch_code' AND count_avail > 0";
         $res =& $db->query($sql);
         $avail_count = $res->fetchOne();
         if (!$avail_count) { $avail_count = 0; }
@@ -690,15 +696,15 @@ class locum_client extends locum {
    * @param string $pin Patron pin/password
    * @return boolean|array Array of patron checkouts or FALSE if $barcode doesn't exist
    */
-  public function get_patron_checkout_history($cardnum, $pin = NULL) {
+  public function get_patron_checkout_history($cardnum, $pin = NULL, $action = NULL) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin);
     }
     
-    $patron_checkout_history = $this->locum_cntl->patron_checkout_history($cardnum, $pin);
-    return $patron_checkout_history;
+    return $this->locum_cntl->patron_checkout_history($cardnum, $pin, $action);
   }
+
   /**
    * Opts patron in or out of checkout history
    *
@@ -706,14 +712,13 @@ class locum_client extends locum {
    * @param string $pin Patron pin/password
    * @return boolean|array Array of patron checkouts or FALSE if $barcode doesn't exist
    */
-  public function set_patron_checkout_history($cardnum, $pin = NULL, $action) {
+  public function set_patron_checkout_history($cardnum, $pin = NULL, $action = NULL) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin, $action);
     }
     
-    $success = $this->locum_cntl->patron_checkout_history_toggle($cardnum, $pin, $action);
-    return $success;
+    return $this->locum_cntl->patron_checkout_history_toggle($cardnum, $pin, $action);
   }
   
   /**
