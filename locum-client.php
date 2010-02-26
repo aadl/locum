@@ -252,25 +252,19 @@ class locum_client extends locum {
       // Remove bibs that are not in this location
       $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
       $utfprep = $db->query($utf);
-      
-      $sql = "SELECT bnum, branch, count_avail FROM locum_avail_branches WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND timestamp > '$cache_cutoff'";
+
+      $sql = "SELECT bnum FROM locum_avail_branches WHERE bnum IN (" . implode(",", $bib_hits_all) . ") AND count_avail > 0";
       $init_result =& $db->query($sql);
       if ($init_result) {
-        $branch_info_cache = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-        $bad_bibs = array();
-        $good_bibs = array();
-        foreach ($branch_info_cache as $item_binfo) {
-          if (($item_binfo['branch'] == $limit_available || $limit_available == 'any') && $item_binfo['count_avail'] > 0) {
-            if (!in_array($item_binfo['bnum'], $good_bibs)) {
-              $good_bibs[] = $item_binfo['bnum'];
-            }
-          } else {
-            $bad_bibs[] = $item_binfo['bnum'];
+        $avail_bib_arr = $init_result->fetchCol();
+        foreach ($bib_hits_all as $bnum_avail_chk) {
+          if (in_array($bnum_avail_chk, $avail_bib_arr)) {
+            $new_bib_hits_all[] = $bnum_avail_chk;
           }
         }
       }
-      $unavail_bibs = array_values(array_diff($bad_bibs, $good_bibs));
-      $bib_hits_all = array_values(array_diff($bib_hits_all, $unavail_bibs));
+      $bib_hits_all = $new_bib_hits_all;
+      unset($new_bib_hits_all);
 
       // rebuild from the full list
       unset($bib_hits);
@@ -319,9 +313,9 @@ class locum_client extends locum {
         }
       }
       
-      $sql = "SELECT COUNT(DISTINCT(bnum)) FROM locum_avail_branches WHERE bnum IN (" . implode(",", $bib_hits_all) . ") AND count_avail > 0";
-      $res =& $db->query($sql);
-      $final_result_set['num_hits'] = $res->fetchOne();
+//      $sql = "SELECT COUNT(DISTINCT(bnum)) FROM locum_avail_branches WHERE bnum IN (" . implode(",", $bib_hits_all) . ") AND count_avail > 0";
+//      $res =& $db->query($sql);
+//      $final_result_set['num_hits'] = $res->fetchOne();
     }
 
     // Refine by facets
@@ -359,15 +353,23 @@ class locum_client extends locum {
       }
       
       // Ages
-      if ($facet_args['age']) {
-        $where .= ' AND (';
-        $age_and = '';
+      if (count($facet_args['age'])) {
+        $age_or = '';
+        $age_sql_cond = '';
         foreach ($facet_args['age'] as $facet_age) {
-          $facet_age_val = $db->quote($facet_age, 'text');
-          $where .= "$age_and ages LIKE '%" . $facet_age . "%' ";
-          $age_and = 'AND';
+          $age_sql_cond .= $age_or . "age = '$facet_age'";
+          $age_or = ' OR ';
         }
-        $where .= ')';
+        $sql = 'SELECT DISTINCT(bnum) FROM locum_avail_ages WHERE bnum IN (' . implode(', ', $bib_hits_all) . ") AND ($age_sql_cond)";
+        $init_result =& $db->query($sql);
+        $age_hits = $init_result->fetchCol();
+        foreach ($bib_hits_all as $bnum_age_chk) {
+          if (in_array($bnum_age_chk, $age_hits)) {
+            $new_bib_hits_all[] = $bnum_age_chk;
+          }
+        }
+        $bib_hits_all = $new_bib_hits_all;
+        unset($new_bib_hits_all);
       }
       
       if(!empty($bib_hits_all)) {
@@ -380,13 +382,13 @@ class locum_client extends locum {
         $init_result =& $db->query($sql2);
         $bib_hits = $init_result->fetchCol();
       }
-      
 
-      
-//      $facet_total = count($bib_hits_all);
- //     $final_result_set['num_hits'] = $facet_total;
     }
-
+    
+    // Get the totals
+    $facet_total = count($bib_hits_all);
+    $final_result_set['num_hits'] = $facet_total;
+    
     // First, we have to get the values back, unsorted against the Sphinx-sorted array
     if (count($bib_hits)) {
       $sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bib_hits) . ')';
@@ -452,7 +454,7 @@ class locum_client extends locum {
 
       // Create non-distinct facets for age
       foreach ($this->locum_config['ages'] as $age_code => $age_name) {
-        $sql = "SELECT COUNT(bnum) as age_sum FROM locum_facet_heap $where_str AND ages LIKE '%$age_code%'";
+        $sql = "SELECT COUNT(bnum) as age_sum FROM locum_avail_ages $where_str AND age = '$age_code'";
         $res =& $db->query($sql);
         $age_count = $res->fetchOne();
         if ($age_count) {

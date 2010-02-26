@@ -292,8 +292,8 @@ class locum_server extends locum {
     
     $db = MDB2::connect($this->dsn);
     $db->exec("DELETE FROM locum_facet_heap");
-    $db->exec("INSERT INTO locum_facet_heap (bnum, series, mat_code, loc_code, lang, pub_year, pub_decade, bib_lastupdate, ages) " .
-      "SELECT locum_bib_items.bnum, series, mat_code, loc_code, lang, pub_year, TRUNCATE(pub_year/10,0)*10 AS pub_decade, bib_lastupdate, ages " .
+    $db->exec("INSERT INTO locum_facet_heap (bnum, series, mat_code, loc_code, lang, pub_year, pub_decade, bib_lastupdate) " .
+      "SELECT locum_bib_items.bnum, series, mat_code, loc_code, lang, pub_year, TRUNCATE(pub_year/10,0)*10 AS pub_decade, bib_lastupdate " .
       "FROM locum_bib_items " .
       "LEFT JOIN locum_availability on locum_bib_items.bnum = locum_availability.bnum " .
       "WHERE active = '1'");
