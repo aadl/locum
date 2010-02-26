@@ -253,18 +253,24 @@ class locum_client extends locum {
       $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
       $utfprep = $db->query($utf);
 
-      $sql = "SELECT bnum FROM locum_avail_branches WHERE bnum IN (" . implode(",", $bib_hits_all) . ") AND count_avail > 0";
+      $sql = "SELECT bnum, branch, count_avail FROM locum_avail_branches WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND timestamp > '$cache_cutoff'";
       $init_result =& $db->query($sql);
       if ($init_result) {
-        $avail_bib_arr = $init_result->fetchCol();
-        foreach ($bib_hits_all as $bnum_avail_chk) {
-          if (in_array($bnum_avail_chk, $avail_bib_arr)) {
-            $new_bib_hits_all[] = $bnum_avail_chk;
+        $branch_info_cache = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+        $bad_bibs = array();
+        $good_bibs = array();
+        foreach ($branch_info_cache as $item_binfo) {
+          if (($item_binfo['branch'] == $limit_available || $limit_available == 'any') && $item_binfo['count_avail'] > 0) {
+            if (!in_array($item_binfo['bnum'], $good_bibs)) {
+              $good_bibs[] = $item_binfo['bnum'];
+            }
+          } else {
+            $bad_bibs[] = $item_binfo['bnum'];
           }
         }
       }
-      $bib_hits_all = $new_bib_hits_all;
-      unset($new_bib_hits_all);
+      $unavail_bibs = array_values(array_diff($bad_bibs, $good_bibs));
+      $bib_hits_all = array_values(array_diff($bib_hits_all, $unavail_bibs));
 
       // rebuild from the full list
       unset($bib_hits);
@@ -293,29 +299,19 @@ class locum_client extends locum {
       
       // trim out the rest of the array based on *any* cache value
       if(!empty($bib_hits_all)) {
-        $sql = "SELECT bnum, branch, count_avail FROM locum_avail_branches WHERE bnum IN (" . implode(", ", $bib_hits_all) . ")";
+        $sql = "SELECT bnum FROM locum_avail_branches WHERE bnum IN (" . implode(",", $bib_hits_all) . ") AND count_avail > 0";
         $init_result =& $db->query($sql);
         if ($init_result) {
-          $branch_info_cache = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-          $bad_bibs = array();
-          $good_bibs = array();
-          foreach ($branch_info_cache as $item_binfo) {
-            if (($item_binfo['branch'] == $limit_available || $limit_available == 'any') && $item_binfo['count_avail'] > 0) {
-              if (!in_array($item_binfo['bnum'], $good_bibs)) {
-                $good_bibs[] = $item_binfo['bnum'];
-              }
-            } else {
-              $bad_bibs[] = $item_binfo['bnum'];
+          $avail_bib_arr = $init_result->fetchCol();
+          foreach ($bib_hits_all as $bnum_avail_chk) {
+            if (in_array($bnum_avail_chk, $avail_bib_arr)) {
+              $new_bib_hits_all[] = $bnum_avail_chk;
             }
           }
-          $unavail_bibs = array_values(array_diff($bad_bibs, $good_bibs));
-          $bib_hits_all = array_unique(array_values(array_diff($bib_hits_all, $unavail_bibs)));
         }
+        $bib_hits_all = $new_bib_hits_all;
+        unset($new_bib_hits_all);
       }
-      
-//      $sql = "SELECT COUNT(DISTINCT(bnum)) FROM locum_avail_branches WHERE bnum IN (" . implode(",", $bib_hits_all) . ") AND count_avail > 0";
-//      $res =& $db->query($sql);
-//      $final_result_set['num_hits'] = $res->fetchOne();
     }
 
     // Refine by facets
@@ -646,6 +642,8 @@ class locum_client extends locum {
     
     if (count($bnum_arr)) {
       $db =& MDB2::connect($this->dsn);
+      $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+      $utfprep = $db->query($utf);
       $sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bnum_arr) . ')';
       $res =& $db->query($sql);
       $item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
@@ -696,9 +694,11 @@ class locum_client extends locum {
    *
    * @param string $cardnum Patron barcode/card number
    * @param string $pin Patron pin/password
+   * @param array $last_record Array containing: 'bnum' => Bib num, 'date' => Date of last record harvested.
+   *              It will return everything after that record if this value is passed
    * @return boolean|array Array of patron checkouts or FALSE if $barcode doesn't exist
    */
-  public function get_patron_checkout_history($cardnum, $pin = NULL, $action = NULL) {
+  public function get_patron_checkout_history($cardnum, $pin = NULL, $last_record = NULL) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin);
@@ -721,6 +721,19 @@ class locum_client extends locum {
     }
     
     return $this->locum_cntl->patron_checkout_history_toggle($cardnum, $pin, $action);
+  }
+  
+  /**
+   * Deletes patron checkout history off the ILS server
+   *
+   * @param string $cardnum Patron barcode/card number
+   * @param string $pin Patron pin/password
+   * @param string $action NULL = do nothing, 'all' = delete all records, 'selected' = Delete records in $vars array
+   * @param array $vars array of variables referring to records to delete (optional)
+   * @param array $last_record Array containing: 'bnum' => Bib num, 'date' => Date of last record harvested
+   */
+  public function delete_patron_checkout_history($cardnum, $pin = NULL, $action = NULL, $vars = NULL, $last_record = NULL) {
+    
   }
   
   /**
