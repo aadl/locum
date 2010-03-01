@@ -180,7 +180,7 @@ class locum_server extends locum {
         
         $bib_values['subjects_ser'] = serialize($subj);
       
-        $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer', 'text');
+        $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'text');
     
         $setlist = 
           "bib_created = :bib_created, " .
@@ -398,7 +398,7 @@ class locum_server extends locum {
     
     parent::putlog("Collecting current data keys ..");
     $db = MDB2::connect($this->dsn);
-    $sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit";
+    $sql = "SELECT bnum, bib_lastupdate FROM locum_bib_items WHERE active = '1' ORDER BY bnum LIMIT $limit";
     $init_result = $db->query($sql);
     $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
     
@@ -458,7 +458,7 @@ class locum_server extends locum {
       $offset = $offset + $limit;
       parent::putlog("Collecting current data keys starting at $offset");
       $db = MDB2::connect($this->dsn);
-      $sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit OFFSET $offset";
+      $sql = "SELECT bnum, bib_lastupdate FROM locum_bib_items WHERE active = '1' ORDER BY bnum LIMIT $limit OFFSET $offset";
       $init_result = $db->query($sql);
       $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
     }
@@ -482,7 +482,7 @@ class locum_server extends locum {
 
     parent::putlog("Collecting current data keys ..");
     $db = MDB2::connect($this->dsn);
-    $sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit";
+    $sql = "SELECT bnum, bib_lastupdate FROM locum_bib_items WHERE active = '1' ORDER BY bnum LIMIT $limit";
     $init_result = $db->query($sql);
     $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
     $locumclient = new locum_client;
@@ -542,7 +542,7 @@ class locum_server extends locum {
       $offset = $offset + $limit;
       parent::putlog("Collecting current data keys starting at $offset");
       $db = MDB2::connect($this->dsn);
-      $sql = "SELECT bnum, bib_lastupdate FROM locum_facet_heap ORDER BY bnum LIMIT $limit OFFSET $offset";
+      $sql = "SELECT bnum, bib_lastupdate FROM locum_bib_items WHERE active = '1' ORDER BY bnum LIMIT $limit OFFSET $offset";
       $init_result = $db->query($sql);
       $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
     }

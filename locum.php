@@ -99,6 +99,35 @@ class locum {
     return $cleaned;
   }
   
+  public function db_query($query, $query_only = TRUE, $return_type = 'all', $assoc = TRUE) {
+    $db =& MDB2::connect($this->dsn);
+    $db_result =& $db->query($query);
+    if ($query_only) {
+      return TRUE;
+    } else {
+      switch (trim(strtolower($return_type))) {
+        case 'row':
+          if ($assoc) {
+            return $db_result->fetchRow(MDB2_FETCHMODE_ASSOC);
+          } else {
+            return $db_result->fetchRow();
+          }
+          break;
+        case 'col':
+          return $db_result->fetchCol();
+          break;
+        case 'all':
+        default:
+          if ($assoc) {
+            return $db_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+          } else {
+            return $db_result->fetchAll();
+          }
+          break;
+      }
+    }
+  }
+  
   /**
    * Checks $query_value against $ini_value to see a) if its a regex or csv match.
    * It will then return TRUE if it is a match or FALSE if not.
