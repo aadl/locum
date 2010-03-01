@@ -179,7 +179,7 @@ class locum_client extends locum {
           // We get better results in title matches if we also rank by title length
           $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
         } else {
-          $cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC, titlelength ASC');
+          $cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC');
         }
         break;
     }
@@ -733,6 +733,10 @@ class locum_client extends locum {
    * @param array $last_record Array containing: 'bnum' => Bib num, 'date' => Date of last record harvested
    */
   public function delete_patron_checkout_history($cardnum, $pin = NULL, $action = NULL, $vars = NULL, $last_record = NULL) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($cardnum, $pin);
+    }
     
   }
   
