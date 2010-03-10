@@ -546,7 +546,7 @@ class locum_client extends locum {
           $result['callnums'][] = $item['callnum'];
         }
         // Determine next item due date
-        if ($result['nextdue'] == 0 || $result['nextdue'] > $item['due']) {
+        if ($result['nextdue'] == 0 || ($item['due'] > 0 && $result['nextdue'] > $item['due'])) {
           $result['nextdue'] = $item['due'];
         }
         // Parse location code
