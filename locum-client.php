@@ -561,12 +561,7 @@ class locum_client extends locum {
     }
     
     // Cache the result
-    $bib_item = self::get_bib_item($bnum);
-    // Update Cache
     $avail_ser = serialize($result);
-    $ages = count($result['ages']) ? "'" . implode(',', $result['ages']) . "'" : 'NULL';
-    $locs = count($loc_codes) ? "'" . implode(',', $loc_codes) . "'" : 'NULL';
-    $bib_loc = $bib_item['loc_code'] ? "'" . $bib_item['loc_code'] . "'" : 'NULL';
     $sql = "REPLACE INTO locum_availability (bnum, available) VALUES (:bnum, :available)";
     $statement = $db->prepare($sql, array('integer', 'text'));
     $dbr = $statement->execute(array('bnum' => $bnum, 'available' => $avail_ser));
@@ -578,10 +573,18 @@ class locum_client extends locum {
     // Store age cache
     $db->query("DELETE FROM locum_avail_ages WHERE bnum = '$bnum'");
     if (count($result['ages'])) {
-      $sql = "INSERT INTO locum_avail_ages (bnum, age, count_avail, count_total, timestamp) VALUES (:bnum, :age, :count_avail, :count_total, NOW())";
+      $sql = "INSERT INTO locum_avail_ages 
+      	(bnum, age, count_avail, count_total, timestamp) 
+      	VALUES (:bnum, :age, :count_avail, :count_total, NOW())
+      ";
       $statement = $db->prepare($sql, array('integer', 'text', 'integer', 'integer'));
       foreach ($result['ages'] as $age => $age_info) {
-        $dbr = $statement->execute(array('bnum' => $bnum, 'age' => $age, 'count_avail' => $age_info['avail'], 'count_total' => $age_info['total']));
+        $dbr = $statement->execute(array(
+        	'bnum' => $bnum, 
+        	'age' => $age, 
+        	'count_avail' => $age_info['avail'], 
+        	'count_total' => $age_info['total'])
+        );
       }
       $statement->Free();
     }
@@ -589,10 +592,18 @@ class locum_client extends locum {
     // Store branch info cache
     $db->query("DELETE FROM locum_avail_branches WHERE bnum = '$bnum'");
     if (count($result['branches'])) {
-      $sql = "INSERT INTO locum_avail_branches (bnum, branch, count_avail, count_total, timestamp) VALUES (:bnum, :branch, :count_avail, :count_total, NOW())";
+      $sql = "INSERT INTO locum_avail_branches 
+      	(bnum, branch, count_avail, count_total, timestamp) 
+      	VALUES (:bnum, :branch, :count_avail, :count_total, NOW())
+      ";
       $statement = $db->prepare($sql, array('integer', 'text', 'integer', 'integer'));
       foreach ($result['branches'] as $branch => $branch_info) {
-        $dbr = $statement->execute(array('bnum' => $bnum, 'branch' => $branch, 'count_avail' => $branch_info['avail'], 'count_total' => $branch_info['total']));
+        $dbr = $statement->execute(array(
+        	'bnum' => $bnum, 
+        	'branch' => $branch, 
+        	'count_avail' => $branch_info['avail'], 
+        	'count_total' => $branch_info['total'])
+        );
       }
       $statement->Free();
     }
