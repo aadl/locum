@@ -359,13 +359,7 @@ class locum_client extends locum {
         $sql = 'SELECT DISTINCT(bnum) FROM locum_avail_ages WHERE bnum IN (' . implode(', ', $bib_hits_all) . ") AND ($age_sql_cond)";
         $init_result =& $db->query($sql);
         $age_hits = $init_result->fetchCol();
-        foreach ($bib_hits_all as $bnum_age_chk) {
-          if (in_array($bnum_age_chk, $age_hits)) {
-            $new_bib_hits_all[] = $bnum_age_chk;
-          }
-        }
-        $bib_hits_all = $new_bib_hits_all;
-        unset($new_bib_hits_all);
+        $bib_hits_all = array_intersect($bib_hits_all, $age_hits);
       }
       
       if(!empty($bib_hits_all)) {
