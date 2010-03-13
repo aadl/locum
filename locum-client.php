@@ -660,22 +660,56 @@ class locum_client extends locum {
     }
     return $bib;
   }
+	
+	/**
+	 * Create a new patron in the ILS
+	 * 
+	 * Note: this may not be supported by all connectors. Further, it may turn out that
+	 * different ILS's require different data for this function. Thus the $patron_data
+	 * parameter is an array which can contain whatever is appropriate for the current ILS.
+	 *
+	 * @param array $patron_data
+	 * @return var
+	 */
+	public function create_patron($patron_data) {
+		if (!is_array($patron_data) || !count($patron_data)) {
+			return false;
+		}
+		$new_patron = $this->locum_cntl->create_patron($patron_data);
+		return $new_patron;
+	}
 
-  /**
-   * Returns an array of patron information
-   *
-   * @param string $pid Patron barcode number or record number
-   * @return boolean|array Array of patron information or FALSE if login fails
-   */
-  public function get_patron_info($pid) {
+	/**
+	 * Returns an array of patron information
+	 *
+	 * @param string $pid Patron barcode number or record number
+	 * @param string $user_key for use with Sirsi
+	 * @param string $alt_id for use with Sirsi
+	 * @return boolean|array Array of patron information or FALSE if login fails
+	 */
+	public function get_patron_info($pid = null, $user_key = null, $alt_id = null) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($pid);
+      return $hook->{__FUNCTION__}($pid, $user_key, $alt_id);
     }
     
-    $patron_info = $this->locum_cntl->patron_info($pid);
-    return $patron_info;
-  }
+		$patron_info = $this->locum_cntl->get_patron_info($pid, $user_key, $alt_id);
+		return $patron_info;
+	}
+	
+	/**
+	 * Update user info in ILS.
+	 * Note: this may not be supported by all connectors. 
+	 *
+	 * @param string $pid Patron barcode number or record number
+	 * @param string $email address to set
+	 * @param string $pin to set
+	 * @return boolean|array
+	 */
+	public function set_patron_info($pid, $email = null, $pin = null) {
+		$success = $this->locum_cntl->set_patron_info($pid, $email, $pin);
+		return $success;
+	}
 
   /**
    * Returns an array of patron checkouts
