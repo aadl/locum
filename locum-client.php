@@ -693,7 +693,7 @@ class locum_client extends locum {
       return $hook->{__FUNCTION__}($pid, $user_key, $alt_id);
     }
     
-		$patron_info = $this->locum_cntl->get_patron_info($pid, $user_key, $alt_id);
+		$patron_info = $this->locum_cntl->patron_info($pid, $user_key, $alt_id);
 		return $patron_info;
 	}
 	
