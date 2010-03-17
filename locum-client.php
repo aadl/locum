@@ -125,9 +125,9 @@ class locum_client extends locum {
     // Filter out the records we don't want shown, per locum.ini
     if (!$override_search_filter) {
       if (trim($this->locum_config['location_limits']['no_search'])) {
-        $cfg_filter_arr = parent::csv_parser($this->locum_config['location_limits']['no_search']);
+        $cfg_filter_arr = $this->csv_parser($this->locum_config['location_limits']['no_search']);
         foreach ($cfg_filter_arr as $cfg_filter) {
-          $cfg_filter_vals[] = parent::string_poly($cfg_filter);
+          $cfg_filter_vals[] = $this->string_poly($cfg_filter);
         }
         $cl->SetFilter('loc_code', $cfg_filter_vals, TRUE);
       }
@@ -188,7 +188,7 @@ class locum_client extends locum {
     if (is_array($format_array)) {
       foreach ($format_array as $format) {
         if (strtolower($format) != 'all') {
-          $filter_arr_mat[] = parent::string_poly(trim($format));
+          $filter_arr_mat[] = $this->string_poly(trim($format));
         }
       }
       if (count($filter_arr_mat)) { $cl->SetFilter('mat_code', $filter_arr_mat); }
@@ -198,7 +198,7 @@ class locum_client extends locum {
     if (count($location_array)) {
       foreach ($location_array as $location) {
         if (strtolower($location) != 'all') {
-          $filter_arr_loc[] = parent::string_poly(trim($location));
+          $filter_arr_loc[] = $this->string_poly(trim($location));
         }
       }
       if (count($filter_arr_loc)) { $cl->SetFilter('loc_code', $filter_arr_loc); }
@@ -226,7 +226,7 @@ class locum_client extends locum {
     $final_result_set['num_hits'] = $sph_res['total'];
     if ($sph_res['total'] <= $this->locum_config['api_config']['suggestion_threshold']) {
       if ($this->locum_config['api_config']['use_yahoo_suggest'] == TRUE) {
-        $final_result_set['suggestion'] = self::yahoo_suggest($term_prestrip);
+        $final_result_set['suggestion'] = $this->yahoo_suggest($term_prestrip);
       }
     }
     
@@ -276,7 +276,7 @@ class locum_client extends locum {
       unset($bib_hits);
       $available_count = 0;
       foreach ($bib_hits_all as $key => $bib_hit) {
-        $bib_avail = self::get_item_status($bib_hit);
+        $bib_avail = $this->get_item_status($bib_hit);
         if ($limit_available == 'any') {
           $available = $bib_avail['avail'];
         } else {
@@ -388,7 +388,7 @@ class locum_client extends locum {
       $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
       foreach ($init_bib_arr as $init_bib) {
         // Get availability
-        $init_bib['availability'] = self::get_item_status($init_bib['bnum']);
+        $init_bib['availability'] = $this->get_item_status($init_bib['bnum']);
         // Clean up the Stdnum
         $init_bib['stdnum'] = preg_replace('/[^\d]/','', $init_bib['stdnum']);
         $bib_reference_arr[(string) $init_bib['bnum']] = $init_bib;
@@ -403,7 +403,7 @@ class locum_client extends locum {
     }
     
     $db->disconnect();
-    $final_result_set['facets'] = self::facetizer($bib_hits_all);
+    $final_result_set['facets'] = $this->facetizer($bib_hits_all);
     if($forcedchange == 'yes') { $final_result_set['changed'] = 'yes'; }
     
     return $final_result_set;
