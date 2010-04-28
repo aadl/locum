@@ -824,13 +824,13 @@ class locum_client extends locum {
    * @param array $pickup_locations Array of pickup location changes.
    * @return boolean TRUE or FALSE if it cannot cancel for some reason
    */
-  public function update_holds($cardnum, $pin = NULL, $cancelholds = array(), $holdfreezes_to_update = array(), $pickup_locations = array()) {
+  public function update_holds($cardnum, $pin = NULL, $cancelholds = array(), $holdfreezes_to_update = array(), $pickup_locations = array(), $suspend_changes = array()) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
-      return $hook->{__FUNCTION__}($cardnum, $pin, $cancelholds, $holdfreezes_to_update, $pickup_locations);
+      return $hook->{__FUNCTION__}($cardnum, $pin, $cancelholds, $holdfreezes_to_update, $pickup_locations, $suspend_changes);
     }
 
-    return $this->locum_cntl->update_holds($cardnum, $pin, $cancelholds, $holdfreezes_to_update, $pickup_locations);
+    return $this->locum_cntl->update_holds($cardnum, $pin, $cancelholds, $holdfreezes_to_update, $pickup_locations, $suspend_changes);
   }
   
   /**
@@ -997,7 +997,7 @@ class locum_client extends locum {
     
     if ($links) {
       foreach ($links as $link) {
-        $link_result[$valid_hits[$link]] = 'http://www.syndetics.com/index.aspx?isbn=' . $isbn . '/' . $link . '.html&client=' . $cust_id;
+        $link_result[$valid_hits[$link]] = 'http://www.syndetics.com/index.aspx?isbn=' . $isbn . '/' . $link . '.html&amp;client=' . $cust_id;
       }
     }
     $db->disconnect();
