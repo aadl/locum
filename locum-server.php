@@ -216,6 +216,7 @@ class locum_server extends locum {
         $sql_prep->execute(array($bnum));
         $sql_prep->free();
       
+/*
         if (is_array($subj) && count($subj)) {
           foreach ($subj as $subj_heading) {
             $insert_data = array($bnum, $subj_heading);
@@ -225,6 +226,7 @@ class locum_server extends locum {
             $sql_prep->free();
           }
         }
+*/
         
         $this->putlog("Updated record # $bnum - $bib[title]", 2, TRUE);
         $updated++;
