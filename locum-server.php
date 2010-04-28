@@ -641,7 +641,89 @@ class locum_server extends locum {
     }
   }
   
+  /**
+   * Scans suppressed bibs for changes or weeds and makes the appropriate changes.
+   * This is seperate as rescanning each night might not be wanted. Could be rolled in
+   *
+   * @param boolean $quiet Run this function silently.  Default: TRUE
+   */
+  public function verify_suppressed($quiet = TRUE) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($quiet);
+    }
+    
+    $limit = 1000;
+    $offset = 0;
+    
+    $this->putlog("Collecting current data keys ..");
+    $db = MDB2::connect($this->dsn);
+    $sql = "SELECT bnum, bib_lastupdate FROM locum_bib_items WHERE active = '0' ORDER BY bnum LIMIT $limit";
+    $init_result = $db->query($sql);
+    $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+    
+    while(!empty($init_bib_arr)) {
+      $num_children = $this->locum_config['harvest_config']['max_children'];
+      $num_to_process = count($init_bib_arr);
+      $bib_arr = array();
+      foreach ($init_bib_arr as $init_bib_arr_vals) {
+        $bib_arr[$init_bib_arr_vals['bnum']] = $init_bib_arr_vals['bib_lastupdate'];
+      }
+      $db->disconnect();
+      $this->putlog("Finished collecting data keys.");
+
+      if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
+      
+        $increment = ceil($num_to_process / $num_children);
+
+        $split_offset = 0;
+        for ($i = 0; $i < $num_children; ++$i) {
+          $end = $start + ($increment - 1);
+          $new_start = $end + 1;
   
+          $pid = pcntl_fork();
+          if ($pid != -1) {
+            if ($pid) {
+              $this->putlog("Spawning child harvester to verify records of $start - $end. PID is $pid ..");
+            } else {
+              sleep(1);
+              ++$i;
+              if ($i == $num_children) { $end++; }
+              $bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
+              $num_bibs = count($bib_arr_sliced);
+              $tmp = $this->update_bib($bib_arr_sliced);
+              $updated = $tmp['updated'];
+              $retired = $tmp['retired'];
+              $this->putlog("Child process complete.  Checked $num_bibs records, updated $updated records, retired $retired records.", 2);
+              exit($i);
+            }
+          } else {
+            $this->putlog("Unable to spawn harvester: ($i)", 5);
+          }
+          $start = $new_start;
+          $split_offset = $split_offset + $increment;
+        }
+        if ($pid) {
+          while ($i > 0) {
+            pcntl_waitpid(-1, &$status);
+            $val = pcntl_wexitstatus($status);
+            --$i;
+          }
+          $this->putlog("Verification complete!", 3);
+        }
+      } else {
+        // TODO - Bib verification for those poor saps w/o pcntl
+      }
+      
+      $offset = $offset + $limit;
+      $this->putlog("Collecting current data keys starting at $offset");
+      $db = MDB2::connect($this->dsn);
+      $sql = "SELECT bnum, bib_lastupdate FROM locum_bib_items WHERE active = '0' ORDER BY bnum LIMIT $limit OFFSET $offset";
+      $init_result = $db->query($sql);
+      $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+    }
+  }
+
   /************ External Content Functions ************/
   
 
