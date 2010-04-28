@@ -114,6 +114,7 @@ class locum_server extends locum {
           $this->putlog("Importing bib # $i - $bib[title]");
           $sql_prep->free();
 
+/*
           if (is_array($subj) && count($subj)) {
             foreach ($subj as $subj_heading) {
               $insert_data = array($bib['bnum'], $subj_heading);
@@ -123,6 +124,7 @@ class locum_server extends locum {
               $sql_prep->free();
             }
           }
+*/
           $process_report['imported']++;
         }
       }
