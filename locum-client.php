@@ -29,21 +29,20 @@ class locum_client extends locum {
    * @return array String-keyed result set
    */
   public function search($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE, $limit_available = FALSE) {
-    
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($type, $term, $limit, $offset, $sort_opt, $format_array, $location_array, $facet_args, $override_search_filter, $limit_available);
     }
-    
-    
+
+
     require_once($this->locum_config['sphinx_config']['api_path'] . '/sphinxapi.php');
     $db =& MDB2::connect($this->dsn);
-    
+
     $term_arr = explode('?', trim(preg_replace('/\//', ' ', $term)));
     $term = trim($term_arr[0]);
-    
-    if ($term == '*' || $term == '**') { 
-      $term = ''; 
+
+    if ($term == '*' || $term == '**') {
+      $term = '';
     } else {
       $term_prestrip = $term;
       //$term = preg_replace('/[^A-Za-z0-9*\- ]/iD', '', $term);
@@ -53,21 +52,21 @@ class locum_client extends locum {
     $final_result_set['type'] = trim($type);
 
     $cl = new SphinxClient();
-    
+
     $cl->SetServer($this->locum_config['sphinx_config']['server_addr'], (int) $this->locum_config['sphinx_config']['server_port']);
 
     // Defaults to 'keyword', non-boolean
     $bool = FALSE;
     $cl->SetMatchMode(SPH_MATCH_ALL);
-    
+
     if(!$term) {
       // Searches for everything (usually for browsing purposes--Hot/New Items, etc..)
-      $cl->SetMatchMode(SPH_MATCH_ANY); 
+      $cl->SetMatchMode(SPH_MATCH_ANY);
     } else {
-      
+
       // Is it a boolean search?
       if(preg_match("/ \| /i", $term) || preg_match("/ \-/i", $term) || preg_match("/ \!/i", $term)) {
-        $cl->SetMatchMode(SPH_MATCH_BOOLEAN); 
+        $cl->SetMatchMode(SPH_MATCH_BOOLEAN);
         $bool = TRUE;
       }
       if(preg_match("/ OR /i", $term)) {
@@ -75,14 +74,14 @@ class locum_client extends locum {
         $term = preg_replace('/ OR /i',' | ',$term);
         $bool = TRUE;
       }
-      
+
       // Is it a phrase search?
       if(preg_match("/\"/i", $term) || preg_match("/\@/i", $term)) {
         $cl->SetMatchMode(SPH_MATCH_EXTENDED2);
         $bool = TRUE;
       }
     }
-    
+
     // Set up for the various search types
     switch ($type) {
       case 'author':
@@ -193,7 +192,7 @@ class locum_client extends locum {
       }
       if (count($filter_arr_mat)) { $cl->SetFilter('mat_code', $filter_arr_mat); }
     }
-    
+
     // Filter by location
     if (count($location_array)) {
       foreach ($location_array as $location) {
@@ -207,7 +206,7 @@ class locum_client extends locum {
     $cl->SetRankingMode(SPH_RANK_WORDCOUNT);
     $cl->SetLimits(0, 5000, 5000);
     $sph_res_all = $cl->Query($term, $idx); // Grab all the data for the facetizer
-    
+
     // If original match didn't return any results, try a proximity search
     if(empty($sph_res_all['matches']) && $bool == FALSE && $term != "*" && $type != "tags") {
       $term = '"' . $term . '"/1';
@@ -215,7 +214,7 @@ class locum_client extends locum {
       $sph_res_all = $cl->Query($term, $idx);
       $forcedchange = 'yes';
     }
-    
+
     // Paging/browsing through the result set.
     $cl->SetLimits((int) $offset, (int) $limit);
 
@@ -229,7 +228,7 @@ class locum_client extends locum {
         $final_result_set['suggestion'] = $this->yahoo_suggest($term_prestrip);
       }
     }
-    
+
     if (is_array($sph_res['matches'])) {
       foreach ($sph_res['matches'] as $bnum => $attr) {
         $bib_hits[] = $bnum;
@@ -240,15 +239,15 @@ class locum_client extends locum {
         $bib_hits_all[] = $bnum;
       }
     }
-    
+
     // Limit list to available
     if ($limit_available && $final_result_set['num_hits'] && (array_key_exists($limit_available, $this->locum_config['branches']) || $limit_available == 'any')) {
-      
+
       $limit_available = trim(strval($limit_available));
-      
+
       // Remove bibs that we know are not available
       $cache_cutoff = date("Y-m-d H:i:00", time() - (60 * $this->locum_config['avail_cache']['cache_cutoff']));
-      
+
       // Remove bibs that are not in this location
       $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
       $utfprep = $db->query($utf);
@@ -296,7 +295,7 @@ class locum_client extends locum {
           unset($bib_hits_all[$key]);
         }
       }
-      
+
       // trim out the rest of the array based on *any* cache value
       if(!empty($bib_hits_all)) {
         $sql = "SELECT bnum FROM locum_avail_branches WHERE bnum IN (" . implode(",", $bib_hits_all) . ") AND count_avail > 0";
@@ -315,7 +314,7 @@ class locum_client extends locum {
     }
 
     // Refine by facets
-    
+
     if (count($facet_args)) {
       $where = '';
 
@@ -337,17 +336,17 @@ class locum_client extends locum {
         }
         $where .= ' AND lang IN (' . implode(', ', $lang_arr) . ')';
       }
-      
+
       // Pub. Year
       if ($facet_args['facet_year']) {
         $where .= ' AND pub_year IN (' . implode(', ', $facet_args['facet_year']) . ')';
       }
-      
+
       // Pub. Decade
       if ($facet_args['facet_decade']) {
         $where .= ' AND pub_decade IN (' . implode(', ', $facet_args['facet_decade']) . ')';
       }
-      
+
       // Ages
       if (count($facet_args['age'])) {
         $age_or = '';
@@ -361,7 +360,7 @@ class locum_client extends locum {
         $age_hits = $init_result->fetchCol();
         $bib_hits_all = array_intersect($bib_hits_all, $age_hits);
       }
-      
+
       if(!empty($bib_hits_all)) {
         $sql1 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where;
         $sql2 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where . " LIMIT $offset, $limit";
@@ -374,11 +373,11 @@ class locum_client extends locum {
       }
 
     }
-    
+
     // Get the totals
     $facet_total = count($bib_hits_all);
     $final_result_set['num_hits'] = $facet_total;
-    
+
     // First, we have to get the values back, unsorted against the Sphinx-sorted array
     if (count($bib_hits)) {
       $sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bib_hits) . ')';
@@ -401,11 +400,11 @@ class locum_client extends locum {
         }
       }
     }
-    
+
     $db->disconnect();
     $final_result_set['facets'] = $this->facetizer($bib_hits_all);
     if($forcedchange == 'yes') { $final_result_set['changed'] = 'yes'; }
-    
+
     return $final_result_set;
 
   }
@@ -426,7 +425,7 @@ class locum_client extends locum {
     $db =& MDB2::connect($this->dsn);
     if (count($bib_hits_all)) {
       $where_str = 'WHERE bnum IN (' . implode(",", $bib_hits_all) . ')';
-      
+
       $sql['mat'] = 'SELECT DISTINCT mat_code, COUNT(mat_code) AS mat_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY mat_code ORDER BY mat_code_sum DESC';
       $sql['series'] = 'SELECT DISTINCT series, COUNT(series) AS series_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY series ORDER BY series ASC';
       $sql['loc'] = 'SELECT DISTINCT loc_code, COUNT(loc_code) AS loc_code_sum FROM locum_facet_heap ' . $where_str . 'GROUP BY loc_code ORDER BY loc_code_sum DESC';
@@ -464,7 +463,7 @@ class locum_client extends locum {
           $result['avail'][$branch_code] = $avail_count;
         }
       }
-      
+
       $db->disconnect();
       return $result;
     }
@@ -474,16 +473,16 @@ class locum_client extends locum {
    * Returns an array of item status info (availability, location, status, etc).
    *
    * @param string $bnum Bib number
-   * @return array Detailed item availability 
+   * @return array Detailed item availability
    */
   public function get_item_status($bnum, $force_refresh = FALSE) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($bnum, $force_refresh);
     }
-    
+
     $db = MDB2::connect($this->dsn);
-    
+
     if (!$force_refresh && $this->locum_config['avail_cache']['cache']) {
       $this->locum_config['avail_cache']['cache_cutoff'];
       $cache_cutoff = date("Y-m-d H:i:s", (time() - (60 * $this->locum_config['avail_cache']['cache_cutoff'])));
@@ -502,7 +501,7 @@ class locum_client extends locum {
       $avail_array = unserialize($row['available']);
       return $avail_array;
     }
-    
+
     $status = $this->locum_cntl->item_status($bnum);
     $result['total'] = count($status['items']);
     $result['avail'] = 0;
@@ -553,7 +552,7 @@ class locum_client extends locum {
         }
       }
     }
-    
+
     // Cache the result
     $avail_ser = serialize($result);
     $sql = "REPLACE INTO locum_availability (bnum, available) VALUES (:bnum, :available)";
@@ -563,48 +562,48 @@ class locum_client extends locum {
       echo "DB connection failed... " . $dbr->getMessage() . "\n";
     }
     $statement->Free();
-    
+
     // Store age cache
     $db->query("DELETE FROM locum_avail_ages WHERE bnum = '$bnum'");
     if (count($result['ages'])) {
-      $sql = "INSERT INTO locum_avail_ages 
-      	(bnum, age, count_avail, count_total, timestamp) 
+      $sql = "INSERT INTO locum_avail_ages
+      	(bnum, age, count_avail, count_total, timestamp)
       	VALUES (:bnum, :age, :count_avail, :count_total, NOW())
       ";
       $statement = $db->prepare($sql, array('integer', 'text', 'integer', 'integer'));
       foreach ($result['ages'] as $age => $age_info) {
         $dbr = $statement->execute(array(
-        	'bnum' => $bnum, 
-        	'age' => $age, 
-        	'count_avail' => $age_info['avail'], 
+        	'bnum' => $bnum,
+        	'age' => $age,
+        	'count_avail' => $age_info['avail'],
         	'count_total' => $age_info['total'])
         );
       }
       $statement->Free();
     }
-    
+
     // Store branch info cache
     $db->query("DELETE FROM locum_avail_branches WHERE bnum = '$bnum'");
     if (count($result['branches'])) {
-      $sql = "INSERT INTO locum_avail_branches 
-      	(bnum, branch, count_avail, count_total, timestamp) 
+      $sql = "INSERT INTO locum_avail_branches
+      	(bnum, branch, count_avail, count_total, timestamp)
       	VALUES (:bnum, :branch, :count_avail, :count_total, NOW())
       ";
       $statement = $db->prepare($sql, array('integer', 'text', 'integer', 'integer'));
       foreach ($result['branches'] as $branch => $branch_info) {
         $dbr = $statement->execute(array(
-        	'bnum' => $bnum, 
-        	'branch' => $branch, 
-        	'count_avail' => $branch_info['avail'], 
+        	'bnum' => $bnum,
+        	'branch' => $branch,
+        	'count_avail' => $branch_info['avail'],
         	'count_total' => $branch_info['total'])
         );
       }
       $statement->Free();
     }
-    
+
     return $result;
   }
-  
+
   /**
    * Returns information about a bib title.
    *
@@ -617,7 +616,7 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($bnum);
     }
-    
+
     $db = MDB2::connect($this->dsn);
     $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
     $utfprep = $db->query($utf);
@@ -632,7 +631,7 @@ class locum_client extends locum {
     $item_arr[0]['stdnum'] = preg_replace('/[^\d]/','', $item_arr[0]['stdnum']);
     return $item_arr[0];
   }
-  
+
   /**
    * Returns information about an array of bib titles.
    *
@@ -644,7 +643,7 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($bnum_arr);
     }
-    
+
     if (count($bnum_arr)) {
       $db =& MDB2::connect($this->dsn);
       $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
@@ -660,10 +659,10 @@ class locum_client extends locum {
     }
     return $bib;
   }
-	
+
 	/**
 	 * Create a new patron in the ILS
-	 * 
+	 *
 	 * Note: this may not be supported by all connectors. Further, it may turn out that
 	 * different ILS's require different data for this function. Thus the $patron_data
 	 * parameter is an array which can contain whatever is appropriate for the current ILS.
@@ -692,14 +691,14 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($pid, $user_key, $alt_id);
     }
-    
+
 		$patron_info = $this->locum_cntl->patron_info($pid, $user_key, $alt_id);
 		return $patron_info;
 	}
-	
+
 	/**
 	 * Update user info in ILS.
-	 * Note: this may not be supported by all connectors. 
+	 * Note: this may not be supported by all connectors.
 	 *
 	 * @param string $pid Patron barcode number or record number
 	 * @param string $email address to set
@@ -723,8 +722,28 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin);
     }
-    
+
     $patron_checkouts = $this->locum_cntl->patron_checkouts($cardnum, $pin);
+    foreach($patron_checkouts as &$patron_checkout) {
+      // lookup bnum from inum
+      if (!$patron_checkout['bnum']) {
+        $patron_checkout['bnum'] = self::inum_to_bnum($patron_checkout['inum']);
+      }
+      if ($patron_checkout['ill'] == 0) {
+        $bib = self::get_bib_item($patron_checkout['bnum']);
+        $patron_checkout['bib'] = $bib;
+        $patron_checkout['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
+        $patron_checkout['title'] = $bib['title'];
+        if ($bib['title_medium']) {
+          $patron_checkout['title'] .= ' ' . $bib['title_medium'];
+        }
+        if($bib['author'] != '') {
+          $patron_checkout['author'] = $bib['author'];
+        }
+        $patron_checkout['addl_author'] = $bib['addl_author'];
+        //if($bib['author']) {$patron_checkout['author'] = $bib['author']};
+      }
+    }
     return $patron_checkouts;
   }
 
@@ -742,7 +761,7 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin);
     }
-    
+
     return $this->locum_cntl->patron_checkout_history($cardnum, $pin, $action);
   }
 
@@ -758,10 +777,10 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin, $action);
     }
-    
+
     return $this->locum_cntl->patron_checkout_history_toggle($cardnum, $pin, $action);
   }
-  
+
   /**
    * Deletes patron checkout history off the ILS server
    *
@@ -776,9 +795,9 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin);
     }
-    
+
   }
-  
+
   /**
    * Returns an array of patron holds
    *
@@ -791,11 +810,31 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin);
     }
-    
+
     $patron_holds = $this->locum_cntl->patron_holds($cardnum, $pin);
+    foreach ($patron_holds as &$patron_hold) {
+      // lookup bnum from inum
+      if (!$patron_hold['bnum']) {
+        $patron_hold['bnum'] = self::inum_to_bnum($patron_hold['inum']);
+      }
+      if ($patron_hold['ill'] == 0) {
+        $bib = self::get_bib_item($patron_hold['bnum']);
+        $patron_hold['bib'] = $bib;
+        $patron_hold['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
+        $patron_hold['title'] = $bib['title'];
+        if ($bib['title_medium']) {
+          $patron_hold['title'] .= ' ' . $bib['title_medium'];
+        }
+        if($bib['author'] != '') {
+          $patron_hold['author'] = $bib['author'];
+        }
+        $patron_hold['addl_author'] = $bib['addl_author'];
+        //if($bib['author']) {$patron_checkout['author'] = $bib['author']};
+      }
+    }
     return $patron_holds;
   }
-  
+
   /**
    * Renews items and returns the renewal result
    *
@@ -809,11 +848,11 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin, $items);
     }
-    
+
     $renew_status = $this->locum_cntl->renew_items($cardnum, $pin, $items);
     return $renew_status;
   }
-  
+
   /**
    * Updates holds/reserves
    *
@@ -832,7 +871,7 @@ class locum_client extends locum {
 
     return $this->locum_cntl->update_holds($cardnum, $pin, $cancelholds, $holdfreezes_to_update, $pickup_locations, $suspend_changes);
   }
-  
+
   /**
    * Places holds
    *
@@ -848,7 +887,7 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $bnum, $varname, $pin, $pickup_loc);
     }
-    
+
     $request_status = $this->locum_cntl->place_hold($cardnum, $bnum, $varname, $pin, $pickup_loc);
     if ($request_status['success']) {
       $db =& MDB2::connect($this->dsn);
@@ -856,7 +895,7 @@ class locum_client extends locum {
     }
     return $request_status;
   }
-  
+
   /**
    * Returns an array of patron fines
    *
@@ -869,11 +908,11 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin);
     }
-    
+
     $patron_fines = $this->locum_cntl->patron_fines($cardnum, $pin);
     return $patron_fines;
   }
-  
+
   /**
    * Pays patron fines.
    * $payment_details structure:
@@ -901,11 +940,11 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($cardnum, $pin, $payment_details);
     }
-    
+
     $payment_result = $this->locum_cntl->pay_patron_fines($cardnum, $pin, $payment_details);
     return $payment_result;
   }
-  
+
   /*
    * Returns an array of random bibs.
    */
@@ -914,7 +953,7 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($limit);
     }
-    
+
     $db =& MDB2::connect($this->dsn);
     $res =& $db->query("SELECT bnum FROM locum_bib_items ORDER BY RAND() LIMIT $limit");
     $item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
@@ -925,12 +964,12 @@ class locum_client extends locum {
     }
     return $bnums;
   }
-  
+
   /************ External Content Functions ************/
-  
+
   /**
    * Formulates "Did you mean?" I may move to the Yahoo API for this..
-   * 
+   *
    * @param string $str String to check
    * @return string|boolean Either returns a string suggestion or FALSE
    */
@@ -939,7 +978,7 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($str);
     }
-    
+
     if (trim($str) && $this->locum_config['api_config']['yahh_app_id']) {
       $appid = $this->locum_config['api_config']['yahh_app_id'];
     } else {
@@ -954,7 +993,7 @@ class locum_client extends locum {
       return FALSE;
     }
   }
-  
+
   /*
    * Client-side version of get_syndetics().  Does not harvest, only checks the database.
    */
@@ -963,12 +1002,12 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($isbn);
     }
-    
+
     $cust_id = $this->locum_config['api_config']['syndetic_custid'];
-    if (!$cust_id) { 
+    if (!$cust_id) {
       return NULL;
     }
-    
+
     $valid_hits = array(
       'TOC'         => 'Table of Contents',
       'BNATOC'      => 'Table of Contents',
@@ -984,17 +1023,17 @@ class locum_client extends locum {
       'KIRKREVIEW'  => 'Kirkus Book Review',
       'ANOTES'      => 'Author Notes'
     );
-    
+
     $db =& MDB2::connect($this->dsn);
-    $res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' AND updated > DATE_SUB(NOW(), INTERVAL 2 MONTH) LIMIT 1");
+    $res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' LIMIT 1");
     $dbres = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
-    
+
     if ($dbres[0]['links']) {
       $links = explode('|', $dbres[0]['links']);
     } else {
       return FALSE;
     }
-    
+
     if ($links) {
       foreach ($links as $link) {
         $link_result[$valid_hits[$link]] = 'http://www.syndetics.com/index.aspx?isbn=' . $isbn . '/' . $link . '.html&amp;client=' . $cust_id;
@@ -1003,6 +1042,6 @@ class locum_client extends locum {
     $db->disconnect();
     return $link_result;
   }
-  
+
 
 }
