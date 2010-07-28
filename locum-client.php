@@ -34,7 +34,6 @@ class locum_client extends locum {
       return $hook->{__FUNCTION__}($type, $term, $limit, $offset, $sort_opt, $format_array, $location_array, $facet_args, $override_search_filter, $limit_available);
     }
 
-
     require_once($this->locum_config['sphinx_config']['api_path'] . '/sphinxapi.php');
     $db =& MDB2::connect($this->dsn);
 
@@ -812,24 +811,26 @@ class locum_client extends locum {
     }
 
     $patron_holds = $this->locum_cntl->patron_holds($cardnum, $pin);
-    foreach ($patron_holds as &$patron_hold) {
-      // lookup bnum from inum
-      if (!$patron_hold['bnum']) {
-        $patron_hold['bnum'] = self::inum_to_bnum($patron_hold['inum']);
-      }
-      if ($patron_hold['ill'] == 0) {
-        $bib = self::get_bib_item($patron_hold['bnum']);
-        $patron_hold['bib'] = $bib;
-        $patron_hold['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
-        $patron_hold['title'] = $bib['title'];
-        if ($bib['title_medium']) {
-          $patron_hold['title'] .= ' ' . $bib['title_medium'];
+    if (count($patron_holds)) {
+      foreach ($patron_holds as &$patron_hold) {
+        // lookup bnum from inum
+        if (!$patron_hold['bnum']) {
+          $patron_hold['bnum'] = self::inum_to_bnum($patron_hold['inum']);
         }
-        if($bib['author'] != '') {
-          $patron_hold['author'] = $bib['author'];
+        if ($patron_hold['ill'] == 0) {
+          $bib = self::get_bib_item($patron_hold['bnum']);
+          $patron_hold['bib'] = $bib;
+          $patron_hold['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
+          $patron_hold['title'] = $bib['title'];
+          if ($bib['title_medium']) {
+            $patron_hold['title'] .= ' ' . $bib['title_medium'];
+          }
+          if($bib['author'] != '') {
+            $patron_hold['author'] = $bib['author'];
+          }
+          $patron_hold['addl_author'] = $bib['addl_author'];
+          //if($bib['author']) {$patron_checkout['author'] = $bib['author']};
         }
-        $patron_hold['addl_author'] = $bib['addl_author'];
-        //if($bib['author']) {$patron_checkout['author'] = $bib['author']};
       }
     }
     return $patron_holds;
