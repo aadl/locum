@@ -818,7 +818,7 @@ class locum_client extends locum {
           $patron_hold['bnum'] = self::inum_to_bnum($patron_hold['inum']);
         }
         if ($patron_hold['ill'] == 0) {
-          $bib = self::get_bib_item($patron_hold['bnum']);
+          $bib = self::get_bib_item($patron_hold['bnum'], TRUE);
           $patron_hold['bib'] = $bib;
           $patron_hold['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
           $patron_hold['title'] = $bib['title'];
