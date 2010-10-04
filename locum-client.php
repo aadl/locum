@@ -966,6 +966,47 @@ class locum_client extends locum {
     return $bnums;
   }
 
+  public function inum_to_bnum($inum, $force_refresh = FALSE) {
+    $inum = intval($inum);
+    $db = MDB2::connect($this->dsn);
+    $cache_cutoff = date("Y-m-d H:i:s", time() - 60 * 60 * 24 * 7); // 1 week
+    $cached = FALSE;
+
+    if (!$force_refresh) {
+      // check the cache table
+      $sql = "SELECT * FROM locum_inum_to_bnum WHERE inum = :inum AND timestamp > '$cache_cutoff'";
+      $statement = $db->prepare($sql, array('integer'));
+      $result = $statement->execute(array('inum' => $inum));
+      if (PEAR::isError($result) && $this->cli) {
+        echo "DB connection failed... " . $results->getMessage() . "\n";
+      }
+      $statement->Free();
+      $cached = $result->NumRows();
+    }
+    if ($cached) {
+      $row = $result->fetchRow(MDB2_FETCHMODE_ASSOC);
+      $bnum = $row['bnum'];
+    } else {
+      // get fresh info from the catalog
+      $iii_webcat = $this->locum_config[ils_config][ils_server];
+      $url = 'http://' . $iii_webcat . '/record=i' . $inum;
+      $bib_page_raw = utf8_encode(file_get_contents($url));
+      preg_match('/marc~b([0-9]*)/', $bib_page_raw, $bnum_raw_match);
+      $bnum = $bnum_raw_match[1];
+
+      if ($bnum) {
+        $sql = "REPLACE INTO locum_inum_to_bnum (inum, bnum) VALUES (:inum, :bnum)";
+        $statement = $db->prepare($sql, array('integer', 'integer'));
+        $result = $statement->execute(array('inum' => $inum, 'bnum' => $bnum));
+        if (PEAR::isError($result) && $this->cli) {
+          echo "DB connection failed... " . $results->getMessage() . "\n";
+        }
+        $statement->Free();
+      }
+    }
+    return $bnum;
+  }
+  
   /************ External Content Functions ************/
 
   /**
