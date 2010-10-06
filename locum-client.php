@@ -1006,7 +1006,7 @@ class locum_client extends locum {
     }
     return $bnum;
   }
-  
+
   /************ External Content Functions ************/
 
   /**
@@ -1078,7 +1078,7 @@ class locum_client extends locum {
 
     if ($links) {
       foreach ($links as $link) {
-        $link_result[$valid_hits[$link]] = 'http://www.syndetics.com/index.aspx?isbn=' . $isbn . '/' . $link . '.html&amp;client=' . $cust_id;
+        $link_result[$valid_hits[$link]] = 'http://www.syndetics.com/index.aspx?isbn=' . $isbn . '/' . $link . '.html&client=' . $cust_id;
       }
     }
     $db->disconnect();
