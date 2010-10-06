@@ -173,12 +173,12 @@ class locum_client extends locum {
         $cl->SetSortMode(SPH_SORT_ATTR_DESC, 'title_ord');
         break;
       default:
-        if ($type == 'title') {
-          // We get better results in title matches if we also rank by title length
-          $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
-        } else {
+#        if ($type == 'title') {
+#          // We get better results in title matches if we also rank by title length
+#          $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
+#        } else {
           $cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC');
-        }
+#        }
         break;
     }
 
