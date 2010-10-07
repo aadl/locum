@@ -504,6 +504,7 @@ class locum_client extends locum {
     $status = $this->locum_cntl->item_status($bnum);
     $result['total'] = count($status['items']);
     $result['avail'] = 0;
+    $result['libuse'] = 0;
     $result['holds'] = $status['holds'];
     $result['on_order'] = $status['on_order'];
     $result['orders'] = count($status['orders']) ? $status['orders'] : array();
@@ -548,6 +549,9 @@ class locum_client extends locum {
         // Tally availability
         if ($item['avail']) {
           $result['avail'] = $result['avail'] + $item['avail'];
+        }
+        if ($item['libuse']) {
+          $result['libuse'] = $result['libuse'] + $item['libuse'];
         }
       }
     }
