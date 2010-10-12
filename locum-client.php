@@ -474,15 +474,24 @@ class locum_client extends locum {
    * @param string $bnum Bib number
    * @return array Detailed item availability
    */
-  public function get_item_status($bnum, $force_refresh = FALSE) {
+  public function get_item_status($bnum, $force_refresh = FALSE, $cache_only = FALSE) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($bnum, $force_refresh);
     }
 
     $db = MDB2::connect($this->dsn);
-
-    if (!$force_refresh && $this->locum_config['avail_cache']['cache']) {
+    if ($cache_only) {
+      // use the cache table, regardless of timestamp
+      $sql = "SELECT * FROM locum_availability WHERE bnum = :bnum";
+      $statement = $db->prepare($sql, array('integer'));
+      $dbr = $statement->execute(array('bnum' => $bnum));
+      if (PEAR::isError($result) && $this->cli) {
+        echo "DB connection failed... " . $results->getMessage() . "\n";
+      }
+      $statement->Free();
+      $cached = $dbr->NumRows();
+    } else if (!$force_refresh && $this->locum_config['avail_cache']['cache']) {
       $this->locum_config['avail_cache']['cache_cutoff'];
       $cache_cutoff = date("Y-m-d H:i:s", (time() - (60 * $this->locum_config['avail_cache']['cache_cutoff'])));
       // check the cache table
