@@ -28,7 +28,7 @@ class locum_client extends locum {
    * @param array $facet_args String-keyed array of facet parameters. See code below for array structure
    * @return array String-keyed result set
    */
-  public function search($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE, $limit_available = FALSE) {
+  public function search($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE, $limit_available = FALSE, $show_inactive = FALSE) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($type, $term, $limit, $offset, $sort_opt, $format_array, $location_array, $facet_args, $override_search_filter, $limit_available);
@@ -200,6 +200,11 @@ class locum_client extends locum {
         }
       }
       if (count($filter_arr_loc)) { $cl->SetFilter('loc_code', $filter_arr_loc); }
+    }
+
+    // Filter inactive records
+    if (!$show_inactive) {
+      $cl->SetFilter('active', array('0'), TRUE);
     }
 
     $cl->SetRankingMode(SPH_RANK_WORDCOUNT);
