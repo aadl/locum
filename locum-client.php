@@ -1025,6 +1025,31 @@ class locum_client extends locum {
     return $bnum;
   }
 
+  public function get_uid_from_token($token) {
+    $db = MDB2::connect($this->dsn);
+    $sql = "SELECT * FROM locum_tokens WHERE token = '$token' LIMIT 1";
+    $res = $db->query($sql);
+    $patron_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
+    return $patron_arr[0]['uid'];
+  }
+
+  public function get_token($uid) {
+    $db = MDB2::connect($this->dsn);
+    $sql = "SELECT * FROM locum_tokens WHERE uid = '$uid' LIMIT 1";
+    $res = $db->query($sql);
+    $patron_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
+    return $patron_arr[0]['token'];
+  }
+  
+  public function set_token($uid) {
+    $random = mt_rand();
+    $token = md5($uid.$random);
+    $sql = "REPLACE INTO locum_tokens (uid, token) VALUES (:uid, '$token')";
+    $statement = $db->prepare($sql, array('integer'));
+    $result = $statement->execute(array('uid' => $uid));
+    return $token;
+  }
+
   /************ External Content Functions ************/
 
   /**
