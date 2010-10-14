@@ -1040,8 +1040,9 @@ class locum_client extends locum {
     $patron_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
     return $patron_arr[0]['token'];
   }
-  
+
   public function set_token($uid) {
+    $db = MDB2::connect($this->dsn);
     $random = mt_rand();
     $token = md5($uid.$random);
     $sql = "REPLACE INTO locum_tokens (uid, token) VALUES (:uid, '$token')";
