@@ -514,7 +514,7 @@ class locum_client extends locum {
       $avail_array = unserialize($row['available']);
       return $avail_array;
     }
-
+    $bib = self::get_bib_item($bnum);
     $status = $this->locum_cntl->item_status($bnum);
     $result['total'] = count($status['items']);
     $result['avail'] = 0;
@@ -523,14 +523,14 @@ class locum_client extends locum {
     $result['on_order'] = $status['on_order'];
     $result['orders'] = count($status['orders']) ? $status['orders'] : array();
     $result['nextdue'] = 0;
-    $result['items'] = $status['items'];
+    
     $result['locations'] = array();
     $result['callnums'] = array();
     $result['ages'] = array();
     $result['branches'] = array();
     $loc_codes = array();
     if (count($status['items'])) {
-      foreach ($status['items'] as $item) {
+      foreach ($status['items'] as &$item) {
         // Parse Ages
         $result['locations'][$item['loc_code']][$item['age']]++;
         if ($result['ages'][$item['age']]) {
@@ -549,6 +549,9 @@ class locum_client extends locum {
           $result['branches'][$item['branch']]['total'] = 1;
         }
         // Parse Callnums
+        if ($item['callnum'] !== $bib['callnum'] && strstr($bib['callnum'],$item['callnum'])) {
+          $item['callnum'] = $bib['callnum'];
+        }
         if (!in_array($item['callnum'], $result['callnums'])) {
           $result['callnums'][] = $item['callnum'];
         }
@@ -569,7 +572,7 @@ class locum_client extends locum {
         }
       }
     }
-
+    $result['items'] = $status['items'];
     // Cache the result
     $avail_ser = serialize($result);
     $sql = "REPLACE INTO locum_availability (bnum, available) VALUES (:bnum, :available)";

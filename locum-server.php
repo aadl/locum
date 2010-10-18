@@ -92,7 +92,7 @@ class locum_server extends locum {
     $utfprep = $db->query($utf);
 
     for ($i = $start; $i <= $end; $i++) {
-      $sql = "SELECT bnum FROM locum_bib_items WHERE bnum = $i";
+      $sql = "SELECT * FROM locum_bib_items WHERE bnum = $i";
       $init_result = $db->query($sql);
       $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
       if(TRUE) {
@@ -105,10 +105,12 @@ class locum_server extends locum {
           foreach ($bib as $bkey => $bval) {
             if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
           }
+          if($init_bib_arr){
+          $bib_values['cover_img'] = $init_bib_arr[0]['cover_img'];
+          }
           $bib_values['subjects_ser'] = serialize($subj);
           $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer', 'text');
-          $sql_prep = $db->prepare('INSERT INTO locum_bib_items VALUES (:bnum, :author, :addl_author, :title, :title_medium, :addl_title, :edition, :series, :callnum, :pub_info, :pub_year, :stdnum, :upc, :lccn, :descr, :notes, :subjects_ser, :lang, :loc_code, :mat_code, :cover_img, NOW(), :bib_created, :bib_lastupdate, :bib_prevupdate, :bib_revs, \'1\')');
-
+          $sql_prep = $db->prepare('REPLACE INTO locum_bib_items VALUES (:bnum, :author, :addl_author, :title, :addl_title, :title_medium, :edition, :series, :callnum, :pub_info, :pub_year, :stdnum, :upc, :lccn, :descr, :notes, :subjects_ser, :lang, :loc_code, :mat_code, :cover_img, NOW(), :bib_created, :bib_lastupdate, :bib_prevupdate, :bib_revs, \'1\')');
           $affrows = $sql_prep->execute($bib_values);
           $this->putlog("Importing bib # $i - $bib[title]");
           $sql_prep->free();
