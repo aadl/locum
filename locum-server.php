@@ -95,9 +95,8 @@ class locum_server extends locum {
       $sql = "SELECT bnum FROM locum_bib_items WHERE bnum = $i";
       $init_result = $db->query($sql);
       $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-      if(empty($init_bib_arr)) {
+      if(TRUE) {
         $bib = $this->locum_cntl->scrape_bib($i, $this->locum_config['api_config']['skip_covers']);
-
         if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {
           $process_report['skipped']++;
         } else {
