@@ -17,15 +17,15 @@ $locum = new locum_server;
 $locum->verify_bibs();
 // Uncomment to also verify suppressed bibs
 // $locum->verify_suppressed();
-$locum->new_bib_scan();
-$locum->rebuild_holds_cache();
+//$locum->new_bib_scan();
+//$locum->rebuild_holds_cache();
 
 // Rebuild Facet Heap
-$locum->rebuild_facet_heap();
+//$locum->rebuild_facet_heap();
 
 // Restart services, reindex, etc.
-$locum->index();
+//$locum->index();
 
 // This can all be done in situ
-$locum->verify_status();
-$locum->verify_syndetics();
+//$locum->verify_status();
+//$locum->verify_syndetics();
