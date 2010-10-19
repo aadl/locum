@@ -523,7 +523,7 @@ class locum_client extends locum {
     $result['on_order'] = $status['on_order'];
     $result['orders'] = count($status['orders']) ? $status['orders'] : array();
     $result['nextdue'] = 0;
-    
+
     $result['locations'] = array();
     $result['callnums'] = array();
     $result['ages'] = array();
@@ -1092,6 +1092,9 @@ class locum_client extends locum {
       return $hook->{__FUNCTION__}($isbn);
     }
 
+    // Strip out yucky non-isbn characters
+    $isbn = preg_replace('/[^\dX]/', '', $isbn);
+    
     $cust_id = $this->locum_config['api_config']['syndetic_custid'];
     if (!$cust_id) {
       return NULL;
