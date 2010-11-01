@@ -3,7 +3,7 @@
 
 // You'll need to change these:
 $first_record = 1000000;
-$last_record = 1300000;
+$last_record = 1375000;
 $large_record_split = 10;
 
 // Init scripts, library locations, and binaries

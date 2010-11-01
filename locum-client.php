@@ -177,7 +177,8 @@ class locum_client extends locum {
 #          // We get better results in title matches if we also rank by title length
 #          $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
 #        } else {
-          $cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC');
+          //$cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC');
+	  $cl->SetSortMode(SPH_SORT_EXPR, "@weight + (hold_count_total)*0.1");
 #        }
         break;
     }
