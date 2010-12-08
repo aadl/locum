@@ -750,7 +750,7 @@ class locum_client extends locum {
         $patron_checkout['bnum'] = self::inum_to_bnum($patron_checkout['inum']);
       }
       if ($patron_checkout['ill'] == 0) {
-        $bib = self::get_bib_item($patron_checkout['bnum']);
+        $bib = self::get_bib_item($patron_checkout['bnum'], TRUE);
         $patron_checkout['bib'] = $bib;
         $patron_checkout['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
         $patron_checkout['title'] = $bib['title'];
@@ -1094,7 +1094,7 @@ class locum_client extends locum {
 
     // Strip out yucky non-isbn characters
     $isbn = preg_replace('/[^\dX]/', '', $isbn);
-    
+
     $cust_id = $this->locum_config['api_config']['syndetic_custid'];
     if (!$cust_id) {
       return NULL;
