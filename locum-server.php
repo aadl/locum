@@ -98,6 +98,11 @@ class locum_server extends locum {
       if(TRUE) {
         $bib = $this->locum_cntl->scrape_bib($i, $this->locum_config['api_config']['skip_covers']);
         if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {
+	  if ($init_bib_arr) {
+	    $sql_prep =& $db->prepare('UPDATE locum_bib_items SET active = ? WHERE bnum = ?', array('text', 'integer'));
+            $sql_prep->execute(array('0', $i));
+	    $this->putlog("suppressed $i");
+	  }
           $process_report['skipped']++;
         } else {
           $subj = $bib['subjects'];

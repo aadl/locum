@@ -106,7 +106,7 @@ class locum_client extends locum {
       case 'tags':
         $cl->SetFieldWeights(array('tag_idx' => 100));
         $idx = 'bib_items_tags';
-        $cl->SetMatchMode(SPH_MATCH_PHRASE);
+        //$cl->SetMatchMode(SPH_MATCH_PHRASE);
         break;
       case 'reviews':
         $cl->SetFieldWeights(array('review_idx' => 100));
@@ -177,7 +177,8 @@ class locum_client extends locum {
 #          // We get better results in title matches if we also rank by title length
 #          $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
 #        } else {
-          $cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC');
+          //$cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC');
+	  $cl->SetSortMode(SPH_SORT_EXPR, "@weight + (hold_count_total)*0.1");
 #        }
         break;
     }
@@ -841,7 +842,7 @@ class locum_client extends locum {
         if ($patron_hold['ill'] == 0) {
           $bib = self::get_bib_item($patron_hold['bnum'], TRUE);
           $patron_hold['bib'] = $bib;
-          $patron_hold['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
+          //$patron_hold['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
           $patron_hold['title'] = $bib['title'];
           if ($bib['title_medium']) {
             $patron_hold['title'] .= ' ' . $bib['title_medium'];

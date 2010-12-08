@@ -35,7 +35,6 @@ class locum {
       }
     }
     
-    ini_set('memory_limit','128M');
     $this->locum_config = parse_ini_file('config/locum.ini', true);
     $script_dir = realpath(dirname(__FILE__));
 
