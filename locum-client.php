@@ -517,8 +517,8 @@ class locum_client extends locum {
     }
     $bib = self::get_bib_item($bnum);
     $status = $this->locum_cntl->item_status($bnum);
-    $result['total'] = count($status['items']);
     $result['avail'] = 0;
+    $result['total'] = count($status['items']);
     $result['libuse'] = 0;
     $result['holds'] = $status['holds'];
     $result['on_order'] = $status['on_order'];
@@ -532,30 +532,30 @@ class locum_client extends locum {
     $loc_codes = array();
     if (count($status['items'])) {
       foreach ($status['items'] as &$item) {
+        // Tally availability
+        $result['avail'] += $item['avail'];
+        // Tally libuse
+        $result['libuse'] += $item['libuse'];
+
+        // Parse Locations
+        $result['locations'][$item['loc_code']][$item['age']]['avail'] += $item['avail'];
+        $result['locations'][$item['loc_code']][$item['age']]['total']++;
+
         // Parse Ages
-        $result['locations'][$item['loc_code']][$item['age']]++;
-        if ($result['ages'][$item['age']]) {
-          $result['ages'][$item['age']]['avail'] = $result['ages'][$item['age']]['avail'] + $item['avail'];
-          $result['ages'][$item['age']]['total']++;
-        } else {
-          $result['ages'][$item['age']]['avail'] = $item['avail'];
-          $result['ages'][$item['age']]['total'] = 1;
-        }
+        $result['ages'][$item['age']]['avail'] += $item['avail'];
+        $result['ages'][$item['age']]['total']++;
+
         // Parse Branches
-        if (count($result['branches'][$item['branch']])) {
-          $result['branches'][$item['branch']]['avail'] = $result['branches'][$item['branch']]['avail'] + $item['avail'];
-          $result['branches'][$item['branch']]['total']++;
-        } else {
-          $result['branches'][$item['branch']]['avail'] = $item['avail'];
-          $result['branches'][$item['branch']]['total'] = 1;
-        }
+        $result['branches'][$item['branch']]['avail'] += $item['avail'];
+        $result['branches'][$item['branch']]['total']++;
+
         // Parse Callnums
-        if ($item['callnum'] !== $bib['callnum'] && strstr($bib['callnum'],$item['callnum'])) {
+        if ($item['callnum'] !== $bib['callnum'] && strstr($bib['callnum'], $item['callnum'])) {
           $item['callnum'] = $bib['callnum'];
         }
-        if (!in_array($item['callnum'], $result['callnums'])) {
-          $result['callnums'][] = $item['callnum'];
-        }
+        $result['callnums'][$item['callnum']]['avail'] += $item['avail'];
+        $result['callnums'][$item['callnum']]['total']++;
+        
         // Determine next item due date
         if ($result['nextdue'] == 0 || ($item['due'] > 0 && $result['nextdue'] > $item['due'])) {
           $result['nextdue'] = $item['due'];
@@ -563,13 +563,6 @@ class locum_client extends locum {
         // Parse location code
         if (!in_array($item['loc_code'], $loc_codes) && trim($item['loc_code'])) {
           $loc_codes[] = $item['loc_code'];
-        }
-        // Tally availability
-        if ($item['avail']) {
-          $result['avail'] = $result['avail'] + $item['avail'];
-        }
-        if ($item['libuse']) {
-          $result['libuse'] = $result['libuse'] + $item['libuse'];
         }
       }
     }
