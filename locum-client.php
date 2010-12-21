@@ -368,7 +368,7 @@ class locum_client extends locum {
 
       if(!empty($bib_hits_all)) {
         $sql1 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where;
-        $sql2 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where . " LIMIT $offset, $limit";
+        $sql2 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where . ' ORDER BY FIELD(bnum,' . implode(', ', $bib_hits_all) . ") LIMIT $offset, $limit";
         $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
         $utfprep = $db->query($utf);
         $init_result =& $db->query($sql1);
