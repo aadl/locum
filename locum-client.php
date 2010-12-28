@@ -1129,5 +1129,8 @@ class locum_client extends locum {
     return $link_result;
   }
 
+  public function make_donation($donate_form_values) {
+    return $this->locum_cntl->make_donation($donate_form_values);
+  }
 
 }
