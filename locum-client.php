@@ -555,7 +555,7 @@ class locum_client extends locum {
         }
         $result['callnums'][$item['callnum']]['avail'] += $item['avail'];
         $result['callnums'][$item['callnum']]['total']++;
-        
+
         // Determine next item due date
         if ($result['nextdue'] == 0 || ($item['due'] > 0 && $result['nextdue'] > $item['due'])) {
           $result['nextdue'] = $item['due'];
@@ -747,6 +747,7 @@ class locum_client extends locum {
         $bib = self::get_bib_item($patron_checkout['bnum'], TRUE);
         $patron_checkout['bib'] = $bib;
         $patron_checkout['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
+        $patron_checkout['scraped_title'] = $patron_checkout['title'];
         $patron_checkout['title'] = $bib['title'];
         if ($bib['title_medium']) {
           $patron_checkout['title'] .= ' ' . $bib['title_medium'];
@@ -836,6 +837,7 @@ class locum_client extends locum {
           $bib = self::get_bib_item($patron_hold['bnum'], TRUE);
           $patron_hold['bib'] = $bib;
           //$patron_hold['avail'] = self::get_item_status($patron_checkout['bnum'], FALSE, TRUE);
+          $patron_hold['scraped_title'] = $patron_hold['title'];
           $patron_hold['title'] = $bib['title'];
           if ($bib['title_medium']) {
             $patron_hold['title'] .= ' ' . $bib['title_medium'];
