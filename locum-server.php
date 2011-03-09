@@ -167,7 +167,7 @@ class locum_server extends locum {
       $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
       $utfprep = $db->query($utf);
 
-      if ($bib == FALSE) {
+      if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {
         // Weed this record
         // TODO add a verification of weed in here somehow
         $sql_prep =& $db->prepare('UPDATE locum_bib_items SET active = ? WHERE bnum = ?', array('text', 'integer'));
