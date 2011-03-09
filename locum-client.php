@@ -646,6 +646,21 @@ class locum_client extends locum {
     return $item_arr[0];
   }
 
+  public function get_cd_tracks($bnum) {
+    $db =& MDB2::connect($this->dsn);
+    $res =& $db->query("SELECT * FROM sample_tracks WHERE bnum = '$bnum' ORDER BY track");
+    $item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
+    $db->disconnect();
+    return $item_arr;
+  }
+  public function get_upc($bnum) {
+    $db =& MDB2::connect($this->dsn);
+    $res =& $db->query("SELECT upc FROM sample_bibs WHERE bnum = '$bnum'");
+    $item_arr = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
+    $db->disconnect();
+    return $item_arr[0];
+  }
+
   /**
    * Returns information about an array of bib titles.
    *
