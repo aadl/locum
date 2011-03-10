@@ -85,7 +85,7 @@ class locum_server extends locum {
     }
     
     $db =& MDB2::connect($this->dsn);
-
+    $couch = new couchClient($this->couchserver,$this->couchdatabase);
     $process_report['skipped'] = 0;
     $process_report['imported'] = 0;
     $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
@@ -95,22 +95,46 @@ class locum_server extends locum {
       $sql = "SELECT * FROM locum_bib_items WHERE bnum = $i";
       $init_result = $db->query($sql);
       $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+      try {
+        $doc = $couch->getDoc($i);
+      } catch ( Exception $e ) {
+        if ( $e->getCode() == 404 ) {
+          // document doesn't exist. create a new one
+          $doc = new stdClass();
+          $doc->_id = $i;
+        } else {
+          // something probably wrong with the server. dump out
+          $this->putlog("Problem with CouchDB server for record $i. ".$e->getCode());
+          exit(1);
+        }
+      }
       if(TRUE) {
         $bib = $this->locum_cntl->scrape_bib($i, $this->locum_config['api_config']['skip_covers']);
         if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {
-	  if ($init_bib_arr) {
-	    $sql_prep =& $db->prepare('UPDATE locum_bib_items SET active = ? WHERE bnum = ?', array('text', 'integer'));
+          if ($init_bib_arr) {
+            $sql_prep =& $db->prepare('UPDATE locum_bib_items SET active = ? WHERE bnum = ?', array('text', 'integer'));
             $sql_prep->execute(array('0', $i));
-	    $this->putlog("suppressed $i");
-	  }
+	           $this->putlog("suppressed $i");
+          }
           $process_report['skipped']++;
         } else {
           $subj = $bib['subjects'];
           $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'addl_title', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img');
           foreach ($bib as $bkey => $bval) {
-            if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
+            if (in_array($bkey, $valid_vals)) {
+              if($bval){
+                $doc->$bkey = $bval;
+              }
+              if(is_array($bval)) {
+                if(count($bval) == 1){
+                  $bval = $bval[0];
+                } else {
+                  $bval = serialize($bval);
+                }
+              }
+              $bib_values[$bkey] = $bval;
+            }
           }
-          $couch = new couchClient($this->couchserver,$this->couchdatabase);
           if($init_bib_arr){
           $bib_values['cover_img'] = $init_bib_arr[0]['cover_img'];
           }
@@ -118,6 +142,9 @@ class locum_server extends locum {
           $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer', 'text');
           $sql_prep = $db->prepare('REPLACE INTO locum_bib_items VALUES (:bnum, :author, :addl_author, :title, :addl_title, :title_medium, :edition, :series, :callnum, :pub_info, :pub_year, :stdnum, :upc, :lccn, :descr, :notes, :subjects_ser, :lang, :loc_code, :mat_code, :cover_img, NOW(), :bib_created, :bib_lastupdate, :bib_prevupdate, :bib_revs, \'1\')');
           $affrows = $sql_prep->execute($bib_values);
+          $doc->subjects = $subj;
+          $doc->active = 1;
+          $couch->storeDoc($doc);
           $this->putlog("Importing bib # $i - $bib[title]");
           $sql_prep->free();
 
