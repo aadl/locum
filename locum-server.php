@@ -119,7 +119,7 @@ class locum_server extends locum {
           $process_report['skipped']++;
         } else {
           $subj = $bib['subjects'];
-          $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'addl_title', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img');
+          $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'addl_title', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img', 'non_romanized_title','non_romanized_author');
           foreach ($bib as $bkey => $bval) {
             if (in_array($bkey, $valid_vals)) {
               if($bval){

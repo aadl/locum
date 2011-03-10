@@ -631,6 +631,7 @@ class locum_client extends locum {
       return $hook->{__FUNCTION__}($bnum);
     }
 
+/*
     $db = MDB2::connect($this->dsn);
     $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
     $utfprep = $db->query($utf);
@@ -644,6 +645,10 @@ class locum_client extends locum {
     $db->disconnect();
     $item_arr[0]['stdnum'] = preg_replace('/[^\d]/','', $item_arr[0]['stdnum']);
     return $item_arr[0];
+*/
+    $couch = new couchClient($this->couchserver,$this->couchdatabase);
+    $doc = $couch->asArray()->getDoc($bnum);
+    return $doc;
   }
 
   public function get_cd_tracks($bnum) {
