@@ -110,6 +110,7 @@ class locum_server extends locum {
           foreach ($bib as $bkey => $bval) {
             if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
           }
+          $couch = new couchClient($this->couchserver,$this->couchdatabase);
           if($init_bib_arr){
           $bib_values['cover_img'] = $init_bib_arr[0]['cover_img'];
           }
