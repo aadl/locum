@@ -647,7 +647,11 @@ class locum_client extends locum {
     return $item_arr[0];
 */
     $couch = new couchClient($this->couchserver,$this->couchdatabase);
-    $doc = $couch->asArray()->getDoc($bnum);
+    try {
+        $doc = $couch->asArray()->getDoc($bnum);
+    } catch ( Exception $e ) {
+        return FALSE;
+    }
     return $doc;
   }
 

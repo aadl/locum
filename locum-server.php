@@ -96,12 +96,12 @@ class locum_server extends locum {
       $init_result = $db->query($sql);
       $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
       try {
-        $doc = $couch->getDoc($i);
+        $doc = $couch->getDoc((string)$i);
       } catch ( Exception $e ) {
         if ( $e->getCode() == 404 ) {
           // document doesn't exist. create a new one
           $doc = new stdClass();
-          $doc->_id = $i;
+          $doc->_id = (string)$i;
         } else {
           // something probably wrong with the server. dump out
           $this->putlog("Problem with CouchDB server for record $i. ".$e->getCode());
@@ -133,17 +133,20 @@ class locum_server extends locum {
                 }
               }
               $bib_values[$bkey] = $bval;
+              unset($bib_values['non_romanized_title']);
+              unset($bib_values['non_romanized_author']);
             }
           }
           if($init_bib_arr){
           $bib_values['cover_img'] = $init_bib_arr[0]['cover_img'];
           }
           $bib_values['subjects_ser'] = serialize($subj);
-          $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'integer', 'text');
+          $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text');
           $sql_prep = $db->prepare('REPLACE INTO locum_bib_items VALUES (:bnum, :author, :addl_author, :title, :addl_title, :title_medium, :edition, :series, :callnum, :pub_info, :pub_year, :stdnum, :upc, :lccn, :descr, :notes, :subjects_ser, :lang, :loc_code, :mat_code, :cover_img, NOW(), :bib_created, :bib_lastupdate, :bib_prevupdate, :bib_revs, \'1\')');
           $affrows = $sql_prep->execute($bib_values);
           $doc->subjects = $subj;
           $doc->active = 1;
+          if($doc->upc == '000000000000'){ unset($doc->upc);}
           $couch->storeDoc($doc);
           $this->putlog("Importing bib # $i - $bib[title]");
           $sql_prep->free();
