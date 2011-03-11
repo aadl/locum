@@ -236,7 +236,7 @@ class locum_client extends locum {
 
     if (is_array($sph_res['matches'])) {
       foreach ($sph_res['matches'] as $bnum => $attr) {
-        $bib_hits[] = $bnum;
+        $bib_hits[] = (string)$bnum;
       }
     }
     if (is_array($sph_res_all['matches'])) {
@@ -368,7 +368,7 @@ class locum_client extends locum {
 
       if(!empty($bib_hits_all)) {
         $sql1 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where;
-        $sql2 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where . ' ORDER BY FIELD(bnum,' . implode(', ', $bib_hits_all) . ") LIMIT $offset, $limit";
+        $sql2 = 'SELECT CAST(bnum as CHAR(12)) FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where . ' ORDER BY FIELD(bnum,' . implode(', ', $bib_hits_all) . ") LIMIT $offset, $limit";
         $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
         $utfprep = $db->query($utf);
         $init_result =& $db->query($sql1);
@@ -385,17 +385,17 @@ class locum_client extends locum {
 
     // First, we have to get the values back, unsorted against the Sphinx-sorted array
     if (count($bib_hits)) {
-      $sql = 'SELECT * FROM locum_bib_items WHERE bnum IN (' . implode(', ', $bib_hits) . ')';
-      $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
-      $utfprep = $db->query($utf);
-      $init_result =& $db->query($sql);
-      $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+      $init_bib_arr = $this->get_bib_items_arr($bib_hits);
+      //$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
+      //$utfprep = $db->query($utf);
+      //$init_result =& $db->query($sql);
+      //$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
       foreach ($init_bib_arr as $init_bib) {
         // Get availability
-        $init_bib['availability'] = $this->get_item_status($init_bib['bnum']);
+        $init_bib['availability'] = $this->get_item_status($init_bib['doc']['bnum']);
         // Clean up the Stdnum
-        $init_bib['stdnum'] = preg_replace('/[^\d]/','', $init_bib['stdnum']);
-        $bib_reference_arr[(string) $init_bib['bnum']] = $init_bib;
+        $init_bib['doc']['stdnum'] = preg_replace('/[^\d]/','', $init_bib['doc']['stdnum']);
+        $bib_reference_arr[(string) $init_bib['doc']['bnum']] = $init_bib['doc'];
       }
 
       // Now we reconcile against the sphinx result
@@ -649,9 +649,9 @@ class locum_client extends locum {
     $couch = new couchClient($this->couchserver,$this->couchdatabase);
     try {
         $doc = $couch->asArray()->getDoc($bnum);
-    } catch ( Exception $e ) {
+      } catch ( Exception $e ) {
         return FALSE;
-    }
+      }
     return $doc;
   }
 
@@ -683,6 +683,13 @@ class locum_client extends locum {
     }
 
     if (count($bnum_arr)) {
+      $couch = new couchClient($this->couchserver,$this->couchdatabase);
+      try {
+        $doc = $couch->asArray()->include_docs(true)->keys($bnum_arr)->getAllDocs();
+      } catch ( Exception $e ) {
+        return FALSE;
+      }
+/*
       $db =& MDB2::connect($this->dsn);
       $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
       $utfprep = $db->query($utf);
@@ -694,8 +701,9 @@ class locum_client extends locum {
         $item['stdnum'] = preg_replace('/[^\d]/','', $item['stdnum']);
         $bib[(string) $item['bnum']] = $item;
       }
+*/
     }
-    return $bib;
+    return $doc['rows'];
   }
 
 	/**
