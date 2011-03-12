@@ -328,7 +328,15 @@ class locum_covers extends locum {
       }
       // Update DB tables with bnum and stdnum
       $db = MDB2::connect($this->dsn);
-      $db->query("UPDATE locum_bib_items SET cover_img = 'CACHE' WHERE bnum = " . $bnum);
+//      $db->query("UPDATE locum_bib_items SET cover_img = 'CACHE' WHERE bnum = " . $bnum);
+      $couch = new couchClient($this->couchserver,$this->couchdatabase);
+      try {
+        $doc = $couch->getDoc((string)$bnum);
+      } catch ( Exception $e ) {
+        return FALSE;
+      }
+      $couch->cover_img = "CACHE";
+      $couch->storeDoc($doc);
       $sql = "REPLACE INTO locum_covercache SET bnum = :bnum, cover_stdnum = :stdnum, uid = :uid";
       $statement = $db->prepare($sql, array('integer', 'text', 'integer'));
       $statement->execute(array('bnum' => $bnum, 'stdnum' => $stdnum, 'uid' => $uid));
