@@ -241,7 +241,7 @@ class locum_client extends locum {
     }
     if (is_array($sph_res_all['matches'])) {
       foreach ($sph_res_all['matches'] as $bnum => $attr) {
-        $bib_hits_all[] = $bnum;
+        $bib_hits_all[] = (string)$bnum;
       }
     }
 
@@ -266,10 +266,10 @@ class locum_client extends locum {
         foreach ($branch_info_cache as $item_binfo) {
           if (($item_binfo['branch'] == $limit_available || $limit_available == 'any') && $item_binfo['count_avail'] > 0) {
             if (!in_array($item_binfo['bnum'], $good_bibs)) {
-              $good_bibs[] = $item_binfo['bnum'];
+              $good_bibs[] = (string)$item_binfo['bnum'];
             }
           } else {
-            $bad_bibs[] = $item_binfo['bnum'];
+            $bad_bibs[] = (string)$item_binfo['bnum'];
           }
         }
       }
