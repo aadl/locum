@@ -354,8 +354,16 @@ class locum_covers extends locum {
    * Clear an erroneous cover image from the cache
    */
   public function clear_covercache($bnum) {
-    $db = MDB2::connect($this->dsn);
-    $db->query("UPDATE locum_bib_items SET cover_img = '' WHERE bnum = " . $bnum);
+    //$db = MDB2::connect($this->dsn);
+    //$db->query("UPDATE locum_bib_items SET cover_img = '' WHERE bnum = " . $bnum);
+    $couch = new couchClient($this->couchserver,$this->couchdatabase);
+    try {
+        $doc = $couch->getDoc((string)$bnum);
+      } catch ( Exception $e ) {
+        return FALSE;
+      }
+    unset($couch->cover_img);
+    $couch->storeDoc($doc);
   }
 
   private function image_create_file($f) {
