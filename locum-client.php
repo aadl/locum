@@ -394,10 +394,10 @@ class locum_client extends locum {
       foreach ($init_bib_arr as $init_bib) {
         // Get availability
         if (in_array($init_bib['doc']['mat_code'], $skip_avail)) {
-          $init_bib['availability'] = $this->get_item_status($init_bib['doc']['bnum'], FALSE, TRUE);
+          $init_bib['doc']['status'] = $this->get_item_status($init_bib['doc']['bnum'], FALSE, TRUE);
         }
         else {
-          $init_bib['availability'] = $this->get_item_status($init_bib['doc']['bnum']);
+          $init_bib['doc']['status'] = $this->get_item_status($init_bib['doc']['bnum']);
         }
         // Clean up the Stdnum
         $init_bib['doc']['stdnum'] = preg_replace('/[^\d]/','', $init_bib['doc']['stdnum']);
