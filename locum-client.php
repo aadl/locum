@@ -385,6 +385,7 @@ class locum_client extends locum {
 
     // First, we have to get the values back, unsorted against the Sphinx-sorted array
     if (count($bib_hits)) {
+      $skip_avail = $this->csv_parser($this->locum_config['format_special']['skip_avail']);
       $init_bib_arr = $this->get_bib_items_arr($bib_hits);
       //$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
       //$utfprep = $db->query($utf);
@@ -392,7 +393,12 @@ class locum_client extends locum {
       //$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
       foreach ($init_bib_arr as $init_bib) {
         // Get availability
-        $init_bib['availability'] = $this->get_item_status($init_bib['doc']['bnum']);
+        if (in_array($init_bib['doc']['mat_code'], $skip_avail)) {
+          $init_bib['availability'] = $this->get_item_status($init_bib['doc']['bnum'], FALSE, TRUE);
+        }
+        else {
+          $init_bib['availability'] = $this->get_item_status($init_bib['doc']['bnum']);
+        }
         // Clean up the Stdnum
         $init_bib['doc']['stdnum'] = preg_replace('/[^\d]/','', $init_bib['doc']['stdnum']);
         $bib_reference_arr[(string) $init_bib['doc']['bnum']] = $init_bib['doc'];
@@ -672,16 +678,16 @@ class locum_client extends locum {
         $count++;
         $doc->tracks->$tracknum->downloads = $count;
       }
-    } 
+    }
     else {
-      $key = "download_".$type; 
+      $key = "download_".$type;
       $count = $doc->$key ? $doc->$key : 0;
       $count++;
       $doc->$key = $count;
     }
     $couch->storeDoc($doc);
   }
-  
+
   public function get_cd_tracks($bnum) {
     $db =& MDB2::connect($this->dsn);
     $res =& $db->query("SELECT * FROM sample_tracks WHERE bnum = '$bnum' ORDER BY track");
