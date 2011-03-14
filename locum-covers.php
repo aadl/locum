@@ -335,7 +335,7 @@ class locum_covers extends locum {
       } catch ( Exception $e ) {
         return FALSE;
       }
-      $couch->cover_img = "CACHE";
+      $doc->cover_img = "CACHE";
       $couch->storeDoc($doc);
       $sql = "REPLACE INTO locum_covercache SET bnum = :bnum, cover_stdnum = :stdnum, uid = :uid";
       $statement = $db->prepare($sql, array('integer', 'text', 'integer'));
@@ -370,7 +370,7 @@ class locum_covers extends locum {
       } catch ( Exception $e ) {
         return FALSE;
       }
-    unset($couch->cover_img);
+    unset($doc->cover_img);
     $couch->storeDoc($doc);
   }
 
