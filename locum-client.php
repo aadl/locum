@@ -655,6 +655,33 @@ class locum_client extends locum {
     return $doc;
   }
 
+  public function count_download($bnum, $type, $tracknum = NULL) {
+    $couch = new couchClient($this->couchserver,$this->couchdatabase);
+    try {
+        $doc = $couch->getDoc($bnum);
+      } catch ( Exception $e ) {
+        return FALSE;
+      }
+    if($tracknum) {
+      if($type == "play"){
+        $count = $doc->tracks->$tracknum->plays ? $doc->tracks->$tracknum->plays : 0;
+        $count++;
+        $doc->tracks->$tracknum->plays = $count;
+      } else if($type == "track") {
+        $count = $doc->tracks->$tracknum->downloads ? $doc->tracks->$tracknum->downloads : 0;
+        $count++;
+        $doc->tracks->$tracknum->downloads = $count;
+      }
+    } 
+    else {
+      $key = "download_".$type; 
+      $count = $doc->$key ? $doc->$key : 0;
+      $count++;
+      $doc->$key = $count;
+    }
+    $couch->storeDoc($doc);
+  }
+  
   public function get_cd_tracks($bnum) {
     $db =& MDB2::connect($this->dsn);
     $res =& $db->query("SELECT * FROM sample_tracks WHERE bnum = '$bnum' ORDER BY track");
