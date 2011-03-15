@@ -522,9 +522,8 @@ class locum_client extends locum {
       return $avail_array;
     }
     $bib = self::get_bib_item($bnum);
-    $skiporder = NULL;
-    if($bib['mat_code'] == 's') { $skiporder = TRUE; }
-    $status = $this->locum_cntl->item_status($bnum,$skiporder);
+    $skiporder = ($bib['mat_code'] == 's');
+    $status = $this->locum_cntl->item_status($bnum, $skiporder);
     $result['avail'] = 0;
     $result['total'] = count($status['items']);
     $result['libuse'] = 0;
