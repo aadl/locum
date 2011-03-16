@@ -119,7 +119,7 @@ class locum_server extends locum {
           $process_report['skipped']++;
         } else {
           $subj = $bib['subjects'];
-          $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'addl_title', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img', 'non_romanized_title','non_romanized_author');
+          $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'addl_title', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img', 'non_romanized_title','non_romanized_author','genres');
           foreach ($bib as $bkey => $bval) {
             if (in_array($bkey, $valid_vals)) {
               if($bval){
@@ -132,11 +132,14 @@ class locum_server extends locum {
                   $bval = serialize($bval);
                 }
               }
+              
               $bib_values[$bkey] = $bval;
-              unset($bib_values['non_romanized_title']);
-              unset($bib_values['non_romanized_author']);
             }
           }
+          // unset items that are in couch but not mysql for now
+          unset($bib_values['non_romanized_title']);
+          unset($bib_values['non_romanized_author']);
+          unset($bib_values['genres']);
           if($init_bib_arr){
           $bib_values['cover_img'] = $init_bib_arr[0]['cover_img'];
           }
