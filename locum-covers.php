@@ -241,7 +241,7 @@ class locum_covers extends locum {
   }
 
   public function get_coverimage($bib) {
-    $cover = array('stdnum' => $bib['stdnum'], 'image_url' => "");
+    $cover = array('stdnum' => $bib['stdnum'][0], 'image_url' => "");
 
     if ($cover['stdnum']) {
       $cover['stdnum'] = preg_replace("/[^A-Z0-9]/", "", $cover['stdnum']);
