@@ -642,14 +642,19 @@ class locum_server extends locum {
               $bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
               $num_bibs = count($bib_arr_sliced);
               foreach ($bib_arr_sliced as $stdnum => $init_bib_date) {
+#                } else {
+#                  $stdnum = $stdnum;
+#                }
+		$stdnum_arr = unserialize($stdnum);
+		$stdnum = $stdnum_arr[0];
                 if (preg_match('/ /', $stdnum)) {
-                $stdnum_arr = explode(' ', $stdnum);
-                $stdnum = $stdnum_arr[0];
-                } else {
-                  $stdnum = $stdnum;
+                 $stdnum_arr = explode(' ', $stdnum);
+                 $stdnum = $stdnum_arr[0];
                 }
-                $this->putlog("Checking syndetics for $stdnum", 2);
-                $tmp = $this->get_syndetics($stdnum);
+                if($stdnum != ''){
+                  $this->putlog("Checking syndetics for $stdnum", 2);
+                  $tmp = $this->get_syndetics($stdnum);
+                }
               }
 
               $this->putlog("Child process complete.  Checked $num_bibs records", 2);

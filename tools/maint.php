@@ -11,7 +11,7 @@ $locum_lib_dir = '/usr/local/lib/locum';
 require_once($locum_lib_dir . '/locum-server.php');
 
 // Instantiate Locum Server
-//$locum = new locum_server;
+$locum = new locum_server;
 
 // Data maintenance
 //$locum->verify_bibs();
@@ -28,4 +28,4 @@ require_once($locum_lib_dir . '/locum-server.php');
 
 // This can all be done in situ
 //$locum->verify_status();
-//$locum->verify_syndetics();
+$locum->verify_syndetics();
