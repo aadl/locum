@@ -726,7 +726,7 @@ class locum_client extends locum {
     if (count($bnum_arr)) {
       $couch = new couchClient($this->couchserver,$this->couchdatabase);
       try {
-        $doc = $couch->asArray()->include_docs(true)->stale("ok")->keys($bnum_arr)->getView('sphinx','by_sphinxid');
+        $doc = $couch->asArray()->include_docs(true)->keys($bnum_arr)->getView('sphinx','by_sphinxid');
       } catch ( Exception $e ) {
         return FALSE;
       }
