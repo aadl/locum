@@ -392,16 +392,23 @@ class locum_client extends locum {
       //$init_result =& $db->query($sql);
       //$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
       foreach ($init_bib_arr as $init_bib) {
-        // Get availability
-        if (in_array($init_bib['doc']['mat_code'], $skip_avail)) {
-          $init_bib['doc']['status'] = $this->get_item_status($init_bib['doc']['bnum'], FALSE, TRUE);
-        }
-        else {
-          $init_bib['doc']['status'] = $this->get_item_status($init_bib['doc']['bnum']);
+        if($init_bib['doc']['bnum']){
+          // Get availability
+          if (in_array($init_bib['doc']['mat_code'], $skip_avail)) {
+            $init_bib['doc']['status'] = $this->get_item_status($init_bib['doc']['bnum'], FALSE, TRUE);
+          }
+          else {
+            $init_bib['doc']['status'] = $this->get_item_status($init_bib['doc']['bnum']);
+          }
         }
         // Clean up the Stdnum
-        $init_bib['doc']['stdnum'] = preg_replace('/[^\d]/','', $init_bib['doc']['stdnum']);
-        $bib_reference_arr[(string) $init_bib['doc']['bnum']] = $init_bib['doc'];
+        //$init_bib['doc']['stdnum'] = preg_replace('/[^\d]/','', $init_bib['doc']['stdnum']);
+        if($init_bib['doc']['sphinxid']){
+          $bib_reference_arr[(string) $init_bib['doc']['sphinxid']] = $init_bib['doc'];
+        }
+        else {
+          $bib_reference_arr[(string) $init_bib['doc']['_id']] = $init_bib['doc'];
+        }
       }
 
       // Now we reconcile against the sphinx result
@@ -719,7 +726,7 @@ class locum_client extends locum {
     if (count($bnum_arr)) {
       $couch = new couchClient($this->couchserver,$this->couchdatabase);
       try {
-        $doc = $couch->asArray()->include_docs(true)->keys($bnum_arr)->getAllDocs();
+        $doc = $couch->asArray()->include_docs(true)->stale("ok")->keys($bnum_arr)->getView('sphinx','by_sphinxid');
       } catch ( Exception $e ) {
         return FALSE;
       }
