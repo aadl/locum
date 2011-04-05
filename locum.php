@@ -34,7 +34,7 @@ class locum {
         return;
       }
     }
-    
+
     $this->locum_config = parse_ini_file('config/locum.ini', true);
     $script_dir = realpath(dirname(__FILE__));
 
@@ -45,6 +45,10 @@ class locum {
     require_once('vendor/phponcouch/lib/couchDocument.php');
     require($this->locum_config['locum_config']['dsn_file']);
     $this->dsn = $dsn;
+    $this->mysqli_host = $mysqli_host;
+    $this->mysqli_username = $mysqli_username;
+    $this->mysqli_passwd = $mysqli_passwd;
+    $this->mysqli_dbname = $mysqli_dbname;
     $this->couchserver = $couchserver;
     $this->couchdatabase = $couchdatabase;
     $connector_type = 'locum_'
@@ -77,7 +81,7 @@ class locum {
    * @param boolean $silent Output to stdout.  Default: yes
    */
   public function putlog($msg, $severity = 1, $silent = TRUE) {
-    
+
     if ($severity > 5) { $severity = 5; }
     $logfile = $this->locum_config['locum_config']['log_file'];
     $quiet = $this->locum_config['locum_config']['run_quiet'];
@@ -98,7 +102,7 @@ class locum {
    * @return string|array Formatted values
    */
   public function csv_parser($csv, $implode = FALSE, $separator = ',') {
-    
+
     $csv_array = explode($separator, trim($csv));
     $cleaned = array();
     foreach ($csv_array as $csv_value) {
@@ -109,7 +113,7 @@ class locum {
     }
     return $cleaned;
   }
-  
+
   public function db_query($query, $query_only = TRUE, $return_type = 'all', $assoc = TRUE) {
     $db =& MDB2::connect($this->dsn);
     $db_result =& $db->query($query);
@@ -138,11 +142,11 @@ class locum {
       }
     }
   }
-  
+
   /**
    * Checks $query_value against $ini_value to see a) if its a regex or csv match.
    * It will then return TRUE if it is a match or FALSE if not.
-   * 
+   *
    * @param string $ini_value INI file value
    * @param string $query_value Value to be matched against $ini_value
    * @return boolean TRUE = match / FALSE = no match
@@ -155,7 +159,7 @@ class locum {
     }
     return FALSE;
   }
-  
+
   /**
    * Returns a CRC32 value that is compatible with MySQL (>=4.1) CRC32() function
    *
@@ -169,5 +173,5 @@ class locum {
       return crc32($str);
     }
   }
-  
+
 }
