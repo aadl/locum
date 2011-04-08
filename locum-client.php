@@ -228,7 +228,7 @@ class locum_client extends locum {
 
     // Include descriptors
     $final_result_set['num_hits'] = $sph_res['total'];
-    if ($sph_res['total'] <= $this->locum_config['api_config']['suggestion_threshold']) {
+    if ($sph_res['total'] <= $this->locum_config['api_config']['suggestion_threshold'] || $forcedchange == 'yes') {
       if ($this->locum_config['api_config']['use_yahoo_suggest'] == TRUE) {
         $final_result_set['suggestion'] = $this->yahoo_suggest($term_prestrip);
       }
@@ -1136,17 +1136,11 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($str);
     }
-
-    if (trim($str) && $this->locum_config['api_config']['yahh_app_id']) {
-      $appid = $this->locum_config['api_config']['yahh_app_id'];
-    } else {
-      $appid = 'YahooDemo';
-    }
-    $url = 'http://boss.yahooapis.com/ysearch/spelling/v1/'.$str.'?format=xml&appid=' . $appid;
-    $suggest_obj = @simplexml_load_file($url);
-
-    if (trim($suggest_obj->resultset_spell->result->suggestion)) {
-      return trim($suggest_obj->resultset_spell->result->suggestion);
+    $search_string = rawurlencode($str);
+    $url = 'http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20search.spelling%20where%20query%3D%22'.$search_string.'%22&format=json';
+    $suggest_obj = json_decode(file_get_contents($url));
+    if (trim($suggest_obj->query->results->suggestion)) {
+      return trim($suggest_obj->query->results->suggestion);
     } else {
       return FALSE;
     }
