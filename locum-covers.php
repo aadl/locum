@@ -33,111 +33,54 @@ class locum_covers extends locum {
     }
   }
 
-  public function get_batch($break_num = 0, $limit = 100, $type = 'NEW') {
+  public function get_batch($break_num = 0, $limit = 100) {
     $limit = intval($limit);
-    $db = MDB2::connect($this->dsn);
-
-    if ($type != 'RETRY') {
-      // First grab the bnums with no corresponding cache table rows
-      $sql = "SELECT locum_bib_items.bnum FROM locum_bib_items " .
-             "LEFT JOIN locum_covercache ON locum_bib_items.bnum = locum_covercache.bnum " .
-             "WHERE locum_covercache.bnum IS NULL " .
-             "AND locum_bib_items.bnum > :break " .
-             "ORDER BY locum_bib_items.bnum ASC " .
-             "LIMIT $limit";
-      $statement = $db->prepare($sql, array('integer'));
-      $result = $statement->execute(array('break' => $break_num));
-      if (PEAR::isError($result) && $this->cli) {
-        echo "DB connection failed... " . $result->getMessage() . "\n";
-      }
-      $statement->free();
-      $num_rows = $result->numRows();
-      $batch_type = 'NEW';
+    //$db = MDB2::connect($this->dsn);
+    $couch = new couchClient($this->couchserver,$this->couchdatabase);
+    // Grab items that don't have covers
+    if($break_num !== 0){
+      $nocovers = $couch->asArray()->limit($limit)->startkey((string)$break_num)->descending(true)->getView('bib','covercache');
     }
-
-    if ($num_rows == 0) {
-      // If no new records, grab the oldest processed records that don't have a cached image
-      if ($break_num && $type == 'RETRY') {
-        $sql = "SELECT bnum FROM locum_covercache " .
-               "WHERE cover_stdnum = '' " .
-               "AND updated >= ( " .
-               "SELECT updated FROM locum_covercache " .
-               "WHERE bnum = :break) " .
-               "ORDER BY updated ASC " .
-               "LIMIT $limit ";
-        $statement = $db->prepare($sql, array('integer'));
-        $result = $statement->execute(array('break' => $break_num));
-      } else {
-        $sql = "SELECT bnum FROM locum_covercache " .
-               "WHERE cover_stdnum = '' " .
-               "ORDER BY updated ASC " .
-               "LIMIT $limit ";
-        $statement = $db->prepare($sql);
-        $result = $statement->execute();
-      }
-      if (PEAR::isError($result) && $this->cli) {
-        echo "DB connection failed... " . $result->getMessage() . "\n";
-      }
-      $statement->free();
-      $num_rows = $result->numRows();
-      $batch_type = 'RETRY';
-    }
-    $start = $result->fetchRow(MDB2_FETCHMODE_ASSOC);
-    $end = $result->fetchRow(MDB2_FETCHMODE_ASSOC, $num_rows-1);
-    return array('start' => $start['bnum'], 'end' => $end['bnum'], 'type' => $batch_type);
+    else {
+      $nocovers = $couch->asArray()->limit($limit)->descending(true)->getView('bib','covercache');
+    }     
+    $num_rows = count($nocovers['rows']);
+    return array('start' => $nocovers['rows'][0]['id'], 'end' => $nocovers['rows'][$num_rows-1]['id']);
   }
 
-  public function process_covers($break, $limit, $type = 'NEW') {
+  public function process_covers($break, $limit) {
     $num_found = 0;
     $not_found = array();
     $total = 0;
-    $db = MDB2::connect($this->dsn);
-
-    if ($type == 'NEW') {
-      $sql = "SELECT locum_bib_items.* FROM locum_bib_items " .
-             "LEFT JOIN locum_covercache ON locum_bib_items.bnum = locum_covercache.bnum " .
-             "WHERE locum_covercache.bnum IS NULL " .
-             "AND locum_bib_items.bnum >= :break " .
-             "ORDER BY locum_bib_items.bnum ASC " .
-             "LIMIT :limit";
-    } else {
-      $sql = "SELECT locum_bib_items.* FROM locum_bib_items " .
-             "LEFT JOIN locum_covercache ON locum_bib_items.bnum = locum_covercache.bnum " .
-             "WHERE locum_covercache.cover_stdnum = '' " .
-             "AND locum_covercache.updated >= ( " .
-             "SELECT updated FROM locum_covercache " .
-             "WHERE bnum = :break) " .
-             "ORDER BY locum_covercache.updated ASC " .
-             "LIMIT :limit";
+    //$db = MDB2::connect($this->dsn);
+    $couch = new couchClient($this->couchserver,$this->couchdatabase);
+    // Grab items that don't have covers
+    if($break !== 0){
+      $nocovers = $couch->asArray()->limit($limit)->startkey((string)$break)->descending(true)->getView('bib','covercache');
     }
-    $statement = $db->prepare($sql, array('integer', 'integer'));
-    $result = $statement->execute(array('break' => $break, 'limit' => $limit));
-    if (PEAR::isError($result) && $this->cli) {
-      echo "DB connection failed... " . $result->getMessage() . "\n";
+    else {
+      $nocovers = $couch->asArray()->limit($limit)->descending(true)->getView('bib','covercache');
     }
-    $statement->free();
-
-    while($bib_rec = $result->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+    foreach($nocovers['rows'] as $bib) {
       $total++;
-      if ($bib_rec['stdnum']) {
+      if ($bib['value']) {
         // clean the stdnum field to just the number
-        ereg("^[0-9a-zA-Z]+", $bib_rec['stdnum'], $regs);
-        $bib_rec['stdnum'] = $regs[0];
-      }
-      if ($this->cli) echo $bib_rec['bnum'] . ": ";
-      if ($cover = self::get_coverimage($bib_rec)) {
-        if ($this->cli) echo $cover['stdnum'] . "::" . $cover['image_url'] . "\n";
-        $num_found++;
-        if (self::create_covercache($bib_rec['bnum'], $cover['image_url'], $cover['stdnum'])) {
-          if ($this->cli) echo "SUCCESS\n";
+        ereg("^[0-9a-zA-Z]+", $bib['value'][0], $regs);
+        $bib['stdnum'] = array($regs[0]);
+        if ($this->cli) echo $bib['id'] . ": ";
+        if ($cover = self::get_coverimage($bib)) {
+          $this->putlog($cover['stdnum'] . "::" . $cover['image_url']);
+          $num_found++;
+          if (self::create_covercache($bib['id'], $cover['image_url'], $cover['stdnum'])) {
+            $this->putlog("SUCCESS: ".$bib['id']);
+          } else {
+            $this->putlog("ERROR CREATING CACHE: ".$bib['id']);
+          }
         } else {
-          if ($this->cli) echo "ERROR CREATING CACHE\n";
-        }
-      } else {
         // Update covercache table to record timestamp of failure
-        $db->query("REPLACE INTO locum_covercache SET bnum = " . $bib_rec['bnum'] . ", cover_stdnum = ''");
-        if ($this->cli) echo "IMAGE NOT FOUND Material: " . $this->locum_config['formats'][$bib_rec['mat_code']] . "\n";
-        $not_found[$bib_rec['mat_code']]++;
+        //$db->query("REPLACE INTO locum_covercache SET bnum = " . $bib['id'] . ", cover_stdnum = ''");
+        //$not_found++;
+        }
       }
     }
 
@@ -148,10 +91,6 @@ class locum_covers extends locum {
       echo "\nPROCESSING COMPLETE: $num_found / $total ($percentage%)\n";
       echo "TIME: " . date("m/d/Y H:i:s", $this->start_time) . "-" . date("m/d/Y H:i:s", $end_time);
       echo " ($average sec. avg.)\n";
-      echo "Not Found by Material: ";
-      foreach ($not_found as $mat_code => $number) {
-        echo $this->locum_config['formats'][$mat_code] . ": " . $number . " ";
-      }
       echo "\nLOOKUP COUNT: " . $this->lookup_count . " XISBN COUNT: " . $this->xisbn_count . "\n";
       foreach ($this->sources_count as $id => $count) {
         echo $id . " COUNT: " . $count . " ";
