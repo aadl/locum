@@ -747,6 +747,23 @@ class locum_client extends locum {
     return $doc['rows'];
   }
 
+  public function get_bib_items($bnum_arr) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($bnum_arr);
+    }
+
+    if (count($bnum_arr)) {
+      $couch = new couchClient($this->couchserver,$this->couchdatabase);
+      try {
+        $doc = $couch->asArray()->include_docs(true)->keys($bnum_arr)->getAllDocs();
+      } catch ( Exception $e ) {
+        return FALSE;
+      }
+    }
+    return $doc['rows'];
+  }
+
 	/**
 	 * Create a new patron in the ILS
 	 *
