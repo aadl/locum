@@ -116,6 +116,10 @@ class locum_server extends locum {
             $sql_prep->execute(array('0', $i));
 	           $this->putlog("suppressed $i");
           }
+          if($doc){
+            $doc->active = 0;
+            $couch->storeDoc($doc);
+          }
           $process_report['skipped']++;
         } else {
           $subj = $bib['subjects'];
