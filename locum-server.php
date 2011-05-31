@@ -23,7 +23,7 @@ class locum_server extends locum {
    * @param int $end Bib number to end with
    * @param boolean $quiet quietly harvest or not.  Default: TRUE
    */
-  public function harvest_bibs($start, $end, $quiet = TRUE) {
+  public function harvest_bibs($start, $end, $quiet = TRUE, $force = TRUE) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($start, $end, $quiet);
@@ -47,7 +47,7 @@ class locum_server extends locum {
             sleep(1);
             ++$i;
             if ($i == $num_children) { $end++; }
-            $result = $this->import_bibs($start, $end);
+            $result = $this->import_bibs($start, $end, $force);
             $this->putlog("Child process complete.  Scanned records $start - $end.  Imported " . $result['imported'] . " records and skipped $result[skipped] ..", 2);
             exit($i);
           }
@@ -65,7 +65,7 @@ class locum_server extends locum {
         $this->putlog("Harvest complete!", 3);
       }
     } else {
-      $result = $this->import_bibs($start, $end);
+      $result = $this->import_bibs($start, $end, $force);
     }
   }
 
@@ -78,7 +78,7 @@ class locum_server extends locum {
    * @param int $end Bib number to end with
    * @return array Array of information about the bibs imported
    */
-  public function import_bibs($start, $end) {
+  public function import_bibs($start, $end, $force = TRUE) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($start, $end);
@@ -108,20 +108,21 @@ class locum_server extends locum {
           exit(1);
         }
       }
-      if(TRUE) {
+      if(TRUE) 
+      {
         $bib = $this->locum_cntl->scrape_bib($i, $this->locum_config['api_config']['skip_covers']);
         if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {
           if ($init_bib_arr) {
             $sql_prep =& $db->prepare('UPDATE locum_bib_items SET active = ? WHERE bnum = ?', array('text', 'integer'));
             $sql_prep->execute(array('0', $i));
-	           $this->putlog("suppressed $i");
           }
-          if($doc){
+          if($doc->active){
             $doc->active = 0;
             $couch->storeDoc($doc);
+            $this->putlog("suppressed $i");
           }
           $process_report['skipped']++;
-        } else {
+        } else if ($force || ($doc->bib_lastupdate != $bib['bib_lastupdate'])) {
           $subj = $bib['subjects'];
           $valid_vals = array('bib_created', 'bib_lastupdate', 'bib_prevupdate', 'bib_revs', 'lang', 'loc_code', 'mat_code', 'author', 'addl_author', 'title', 'title_medium', 'addl_title', 'edition', 'series', 'callnum', 'pub_info', 'pub_year', 'stdnum', 'upc', 'lccn', 'descr', 'notes', 'bnum', 'cover_img', 'non_romanized_title','non_romanized_author','genres','non_romanized_notes');
           foreach ($bib as $bkey => $bval) {
@@ -171,6 +172,10 @@ class locum_server extends locum {
           }
 */
           $process_report['imported']++;
+        }
+        else {
+          $process_report['skipped']++;
+          $this->putlog("Skipping unchanged bib # $i - $bib[title]");
         }
       }
     }
