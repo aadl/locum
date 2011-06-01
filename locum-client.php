@@ -45,7 +45,7 @@ class locum_client extends locum {
     } else {
       $term_prestrip = $term;
       //$term = preg_replace('/[^A-Za-z0-9*\- ]/iD', '', $term);
-      $term = preg_replace('/\*\*/','*', $term);
+      $term = preg_replace('/\*\*/','*', $term); //fix for how iii used to do wildcards
     }
     $final_result_set['term'] = $term;
     $final_result_set['type'] = trim($type);
@@ -62,7 +62,10 @@ class locum_client extends locum {
       // Searches for everything (usually for browsing purposes--Hot/New Items, etc..)
       $cl->SetMatchMode(SPH_MATCH_ANY);
     } else {
-
+      // non-fiction is a shithole of bad data
+      $nonfiction = array('nonfiction','non-fiction');
+      $nonfic_search = '(@callnum "0*" | @callnum "1*" | @callnum "2*" | @callnum "3*" | @callnum "4*" | @callnum "5*" | @callnum "6*" | @callnum "7*" | @callnum "8*" | @callnum "9*")';
+      $term = str_ireplace($nonfiction,$nonfic_search,$term);
       // Is it a boolean search?
       if(preg_match("/ \| /i", $term) || preg_match("/ \-/i", $term) || preg_match("/ \!/i", $term)) {
         $cl->SetMatchMode(SPH_MATCH_BOOLEAN);
@@ -80,7 +83,6 @@ class locum_client extends locum {
         $bool = TRUE;
       }
     }
-
     // Set up for the various search types
     switch ($type) {
       case 'author':
