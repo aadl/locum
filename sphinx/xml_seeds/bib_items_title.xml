@@ -5,6 +5,8 @@
   <sphinx:field name="title_medium"/>
   <sphinx:field name="addl_title"/>
   <sphinx:field name="series"/>
+  <sphinx:field name="publisher"/>
+  <sphinx:field name="pubyear"/>
   <sphinx:attr name="title_ord" type="str2ordinal" bits="32" default="0"/>
   <sphinx:attr name="author_ord" type="str2ordinal" bits="32" default="0"/>
   <sphinx:attr name="titleattr" type="int" bits="32" default="0"/>

@@ -1,5 +1,6 @@
 <?php
 ////////////////////////////////////////////////////////////////////////////////
+error_reporting(E_ERROR);
 $main_time_start = microtime(true);
 require_once('../vendor/predis/lib/Predis.php');
 require_once('../locum-client.php');
@@ -189,7 +190,7 @@ function prep_bib(&$bib) {
   $bib['loc_code'] = crc32($bib['loc_code']) + 4294967296;
   $bib['mat_code'] = crc32($bib['mat_code']) + 4294967296;
   $bib['titleattr'] = crc32(strtolower($bib['title'])) + 4294967296;
-  $bib['cover_img'] = crc32($bib['cover_img']) + 4294967296;
+  $bib['cover_code'] = crc32($bib['cover_img']) + 4294967296;
 
   // Timestamps
   $bib['bib_created'] = strtotime($bib['bib_created']);
