@@ -45,7 +45,7 @@ class locum_client extends locum {
     } else {
       $term_prestrip = $term;
       //$term = preg_replace('/[^A-Za-z0-9*\- ]/iD', '', $term);
-      $term = preg_replace('/\*\*/','*', $term);
+      $term = preg_replace('/\*\*/','*', $term); //fix for how iii used to do wildcards
     }
     $final_result_set['term'] = $term;
     $final_result_set['type'] = trim($type);
@@ -60,9 +60,12 @@ class locum_client extends locum {
 
     if(!$term) {
       // Searches for everything (usually for browsing purposes--Hot/New Items, etc..)
-      $cl->SetMatchMode(SPH_MATCH_ANY);
+      $cl->SetMatchMode(SPH_MATCH_EXTENDED2);
     } else {
-
+      // non-fiction is a shithole of bad data
+      $nonfiction = array('nonfiction','non-fiction');
+      $nonfic_search = '(@callnum "0*" | @callnum "1*" | @callnum "2*" | @callnum "3*" | @callnum "4*" | @callnum "5*" | @callnum "6*" | @callnum "7*" | @callnum "8*" | @callnum "9*")';
+      $term = str_ireplace($nonfiction,$nonfic_search,$term);
       // Is it a boolean search?
       if(preg_match("/ \| /i", $term) || preg_match("/ \-/i", $term) || preg_match("/ \!/i", $term)) {
         $cl->SetMatchMode(SPH_MATCH_BOOLEAN);
@@ -80,7 +83,6 @@ class locum_client extends locum {
         $bool = TRUE;
       }
     }
-
     // Set up for the various search types
     switch ($type) {
       case 'author':
@@ -228,7 +230,7 @@ class locum_client extends locum {
 
     // Include descriptors
     $final_result_set['num_hits'] = $sph_res['total'];
-    if ($sph_res['total'] <= $this->locum_config['api_config']['suggestion_threshold']) {
+    if ($sph_res['total'] <= $this->locum_config['api_config']['suggestion_threshold'] || $forcedchange == 'yes') {
       if ($this->locum_config['api_config']['use_yahoo_suggest'] == TRUE) {
         $final_result_set['suggestion'] = $this->yahoo_suggest($term_prestrip);
       }
@@ -748,6 +750,23 @@ class locum_client extends locum {
     return $doc['rows'];
   }
 
+  public function get_bib_items($bnum_arr) {
+    if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
+      eval('$hook = new ' . __CLASS__ . '_hook;');
+      return $hook->{__FUNCTION__}($bnum_arr);
+    }
+
+    if (count($bnum_arr)) {
+      $couch = new couchClient($this->couchserver,$this->couchdatabase);
+      try {
+        $doc = $couch->asArray()->include_docs(true)->keys($bnum_arr)->getAllDocs();
+      } catch ( Exception $e ) {
+        return FALSE;
+      }
+    }
+    return $doc['rows'];
+  }
+
 	/**
 	 * Create a new patron in the ILS
 	 *
@@ -1137,17 +1156,11 @@ class locum_client extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($str);
     }
-
-    if (trim($str) && $this->locum_config['api_config']['yahh_app_id']) {
-      $appid = $this->locum_config['api_config']['yahh_app_id'];
-    } else {
-      $appid = 'YahooDemo';
-    }
-    $url = 'http://boss.yahooapis.com/ysearch/spelling/v1/'.$str.'?format=xml&appid=' . $appid;
-    $suggest_obj = @simplexml_load_file($url);
-
-    if (trim($suggest_obj->resultset_spell->result->suggestion)) {
-      return trim($suggest_obj->resultset_spell->result->suggestion);
+    $search_string = rawurlencode($str);
+    $url = 'http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20search.spelling%20where%20query%3D%22'.$search_string.'%22&format=json';
+    $suggest_obj = json_decode(file_get_contents($url));
+    if (trim($suggest_obj->query->results->suggestion)) {
+      return trim($suggest_obj->query->results->suggestion);
     } else {
       return FALSE;
     }
