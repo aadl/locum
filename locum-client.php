@@ -116,7 +116,7 @@ class locum_client extends locum {
         break;
       case 'keyword':
       default:
-        $cl->SetFieldWeights(array('title' => 50, 'title_medium' => 50, 'author' => 70, 'addl_author' => 40, 'tag_idx' =>35, 'series' => 25, 'review_idx' => 10, 'notes' => 10, 'subjects' => 5 ));
+        $cl->SetFieldWeights(array('title' => 400, 'title_medium' => 30, 'author' => 70, 'addl_author' => 40, 'tag_idx' =>25, 'series' => 25, 'review_idx' => 10, 'notes' => 10, 'subjects' => 5 ));
         $idx = 'bib_items_keyword';
         break;
 
@@ -180,7 +180,7 @@ class locum_client extends locum {
 #          $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
 #        } else {
           //$cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC');
-	  $cl->SetSortMode(SPH_SORT_EXPR, "@weight + (hold_count_total)*0.1");
+	  $cl->SetSortMode(SPH_SORT_EXPR, "@weight + (hold_count_total)*0.02");
 #        }
         break;
     }
@@ -210,7 +210,7 @@ class locum_client extends locum {
       $cl->SetFilter('active', array('0'), TRUE);
     }
 
-    $cl->SetRankingMode(SPH_RANK_WORDCOUNT);
+    $cl->SetRankingMode(SPH_RANK_SPH04);
     $cl->SetLimits(0, 5000, 5000);
     $sph_res_all = $cl->Query($term, $idx); // Grab all the data for the facetizer
 
