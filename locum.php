@@ -46,6 +46,10 @@ class locum {
     require_once('vendor/redisent/redisent.php');
     require($this->locum_config['locum_config']['dsn_file']);
     $this->dsn = $dsn;
+    $this->mysqli_host = $mysqli_host;
+    $this->mysqli_username = $mysqli_username;
+    $this->mysqli_passwd = $mysqli_passwd;
+    $this->mysqli_dbname = $mysqli_dbname;
     $this->couchserver = $couchserver;
     $this->couchdatabase = $couchdatabase;
     $this->redis = new Redisent($redis_host);
