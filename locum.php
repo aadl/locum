@@ -43,10 +43,12 @@ class locum {
     require_once('vendor/phponcouch/lib/couch.php');
     require_once('vendor/phponcouch/lib/couchClient.php');
     require_once('vendor/phponcouch/lib/couchDocument.php');
+    require_once('vendor/redisent/redisent.php');
     require($this->locum_config['locum_config']['dsn_file']);
     $this->dsn = $dsn;
     $this->couchserver = $couchserver;
     $this->couchdatabase = $couchdatabase;
+    $this->redis = new Redisent($redis_host);
     $connector_type = 'locum_'
       . $this->locum_config['ils_config']['ils'] . '_'
       . $this->locum_config['ils_config']['ils_version'];
