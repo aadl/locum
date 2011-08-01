@@ -156,6 +156,7 @@ class locum_server extends locum {
           $doc->subjects = $subj;
           $doc->active = 1;
           if($doc->upc == '000000000000'){ unset($doc->upc);}
+          if(!$bib['pub_year']){unset($doc->pub_year);}
           $couch->storeDoc($doc);
           $this->putlog("Importing bib # $i - $bib[title]");
           $sql_prep->free();

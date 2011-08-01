@@ -24,6 +24,7 @@ class locum {
    * This function prepares Locum for activity.
    */
   public function __construct() {
+    date_default_timezone_set('America/Detroit');
     if (file_exists('locum-hooks.php')) {
       require_once('locum-hooks.php');
     }

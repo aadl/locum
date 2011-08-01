@@ -4,7 +4,7 @@
 // You may want/need to change this
 ini_set('memory_limit', '400M');
 $first_record = 1000000;
-$last_record = 1390000;
+$last_record = 1392000;
 $large_record_split = 50;
 
 // Init scripts, library locations, and binaries

@@ -578,9 +578,12 @@ class locum_client extends locum {
 
         // Cache the result
         $avail_ser = json_encode($result);
-        $this->redis->set('availcache:' . $bnum, $avail_ser);
-        $this->redis->zadd('availcache:timestamps', time(), $bnum);
-
+        try {
+          $this->redis->set('availcache:' . $bnum, $avail_ser);
+          $this->redis->zadd('availcache:timestamps', time(), $bnum);
+        } catch (Exception $e) {
+        
+        }
         // Store age cache
         if ($statement = $mysqli->prepare('DELETE FROM locum_avail_ages WHERE bnum = ?')) {
           $statement->bind_param('i', $bnum);
@@ -1139,6 +1142,7 @@ class locum_client extends locum {
    * @return string|boolean Either returns a string suggestion or FALSE
    */
   public function yahoo_suggest($str) {
+    return FALSE;
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($str);
