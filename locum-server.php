@@ -119,6 +119,10 @@ class locum_server extends locum {
           if($doc->active){
             $doc->active = 0;
             $couch->storeDoc($doc);
+            require_once($this->locum_config['sphinx_config']['api_path'] . '/sphinxapi.php');
+            $cl = new SphinxClient();
+            $cl->SetServer($this->locum_config['sphinx_config']['server_addr'], (int) $this->locum_config['sphinx_config']['server_port']);
+            $cl->UpdateAttributes("bib_items_keyword,bib_items_author,bib_items_title,bib_items_subject,bib_items_callnum,bib_items_tags,bib_items_reviews",array("active"),array($i => array(0)));
             $this->putlog("suppressed $i");
           }
           $process_report['skipped']++;
