@@ -394,6 +394,7 @@ class locum_client extends locum {
       //$init_result =& $db->query($sql);
       //$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
       foreach ($init_bib_arr as $init_bib) {
+        $init_bib['doc'] = $init_bib['value'];
         if($init_bib['doc']['bnum']){
           // Get availability
           if (in_array($init_bib['doc']['mat_code'], $skip_avail)) {
@@ -719,7 +720,7 @@ class locum_client extends locum {
     if (count($bnum_arr)) {
       $couch = new couchClient($this->couchserver,$this->couchdatabase);
       try {
-        $doc = $couch->asArray()->include_docs(true)->keys($bnum_arr)->getView('sphinx','by_sphinxid');
+        $doc = $couch->asArray()->keys($bnum_arr)->getView('sphinxemit','by_sphinxid');
       } catch ( Exception $e ) {
         return FALSE;
       }
