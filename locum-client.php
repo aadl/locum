@@ -66,6 +66,9 @@ class locum_client extends locum {
       $nonfiction = array('nonfiction','non-fiction');
       $nonfic_search = '(@callnum "0*" | @callnum "1*" | @callnum "2*" | @callnum "3*" | @callnum "4*" | @callnum "5*" | @callnum "6*" | @callnum "7*" | @callnum "8*" | @callnum "9*")';
       $term = str_ireplace($nonfiction,$nonfic_search,$term);
+      $picturebook = array('picturebook','picture book');
+      $picbk_search = '(@callnum ^E)';
+      $term = str_ireplace($picturebook,$picbk_search,$term);
       // Is it a boolean search?
       if(preg_match("/ \| /i", $term) || preg_match("/ \-/i", $term) || preg_match("/ \!/i", $term)) {
         $cl->SetMatchMode(SPH_MATCH_BOOLEAN);
