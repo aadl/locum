@@ -208,6 +208,26 @@ class locum_client extends locum {
       if (count($filter_arr_loc)) { $cl->SetFilter('loc_code', $filter_arr_loc); }
     }
 
+    // Filter by pub_year
+    if (strpos($facet_args['facet_year'][0], '-') !== FALSE) {
+      $min_year = 1;
+      $max_year = 9999;
+
+      $args = explode('-', $facet_args['facet_year'][0]);
+      $min_arg = (int) $args[0];
+      $max_arg = (int) $args[1];
+
+      if ($min_arg && ($min_arg > $min_year)) {
+        $min_year = $min_arg;
+      }
+      if ($max_arg && ($max_arg < $max_year)) {
+        $max_year = $max_arg;
+      }
+
+      $cl->setFilterRange('pub_year', $min_year, $max_year);
+      unset($facet_args['facet_year']);
+    }
+
     // Filter inactive records
     if (!$show_inactive) {
       $cl->SetFilter('active', array('0'), TRUE);
@@ -586,7 +606,7 @@ class locum_client extends locum {
           $this->redis->set('availcache:' . $bnum, $avail_ser);
           $this->redis->zadd('availcache:timestamps', time(), $bnum);
         } catch (Exception $e) {
-        
+
         }
         // Store age cache
         if ($statement = $mysqli->prepare('DELETE FROM locum_avail_ages WHERE bnum = ?')) {
@@ -626,7 +646,7 @@ class locum_client extends locum {
     $mysqli->close();
     unset($mysqli);
 
-    return $result;  
+    return $result;
   }
 
   /**
