@@ -205,6 +205,7 @@ class locum_covers extends locum {
         'Sort' => "relevancerank",
         'ResponseGroup' => "Medium",
         'Keywords' => $keywords,
+        'AssociateTag' => $this->locum_config['amazon_search']['associatetag'],
       );
       switch($bib['mat_code']) {
         case 'g':
