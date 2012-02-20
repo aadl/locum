@@ -5,9 +5,8 @@ $main_time_start = microtime(true);
 require_once('../vendor/predis/lib/Predis.php');
 require_once('../locum-client.php');
 $config = parse_ini_file('../config/indexer-xml-config.ini', TRUE);
-
 $process_limit = 1000; // records to process in each batch
-$process_maximum = 10; // number of processes to spawn
+$process_maximum = 2; // number of processes to spawn
 $queue = 'queue:sphinx-xml';
 $script_name = $_SERVER['SCRIPT_NAME'];
 $log_file = 'sphinx-xml.log';
@@ -176,6 +175,15 @@ function prep_bib(&$bib) {
     }
     $bib['locations'] = implode(',', $locs);
     unset($locs);
+  }
+  $callnum = $bib['callnum'];
+  foreach($bib_status['items'] as $item){
+    if(preg_match('/Zoom/',$item['callnum'])) {
+      $bib['callnum'] = $bib['callnum'] . " " . trim($item['callnum']);
+    }
+    if(strpos($item['location'],'StaffPicks')){
+      $bib['callnum'] = $bib['callnum'] . " StaffPick";
+    }
   }
   unset($bib_status);
 

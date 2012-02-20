@@ -24,6 +24,7 @@ class locum {
    * This function prepares Locum for activity.
    */
   public function __construct() {
+    date_default_timezone_set('America/Detroit');
     if (file_exists('locum-hooks.php')) {
       require_once('locum-hooks.php');
     }
@@ -37,12 +38,12 @@ class locum {
 
     $this->locum_config = parse_ini_file('config/locum.ini', true);
     $script_dir = realpath(dirname(__FILE__));
-
     // Take care of requirements
     require_once('MDB2.php');
     require_once('vendor/phponcouch/lib/couch.php');
     require_once('vendor/phponcouch/lib/couchClient.php');
     require_once('vendor/phponcouch/lib/couchDocument.php');
+    require_once('vendor/redisent/redisent.php');
     require($this->locum_config['locum_config']['dsn_file']);
     $this->dsn = $dsn;
     $this->mysqli_host = $mysqli_host;
@@ -51,6 +52,7 @@ class locum {
     $this->mysqli_dbname = $mysqli_dbname;
     $this->couchserver = $couchserver;
     $this->couchdatabase = $couchdatabase;
+    $this->redis = new redisent\Redis($redis_host);
     $connector_type = 'locum_'
       . $this->locum_config['ils_config']['ils'] . '_'
       . $this->locum_config['ils_config']['ils_version'];

@@ -501,133 +501,120 @@ class locum_client extends locum {
       return $hook->{__FUNCTION__}($bnum, $force_refresh);
     }
 
+    $result = array();
     $mysqli = new mysqli($this->mysqli_host, $this->mysqli_username, $this->mysqli_passwd, $this->mysqli_dbname);
-
     if ($cache_only) {
       // use the cache table, regardless of timestamp
-      if ($statement = $mysqli->prepare('SELECT available FROM locum_availability WHERE bnum = ? LIMIT 1')) {
-        $statement->bind_param('i', $bnum);
-        $statement->execute();
-        $statement->store_result();
-        $statement->bind_result($available);
-        $statement->fetch();
-        $cached = $statement->num_rows;
-        $statement->close();
+      if ($available = $this->redis->get('availcache:' . $bnum)) {
+        $cached = TRUE;
       }
     }
     else if (!$force_refresh && $this->locum_config['avail_cache']['cache']) {
       // check the cache table
-      $cache_cutoff = date("Y-m-d H:i:s", (time() - (60 * $this->locum_config['avail_cache']['cache_cutoff'])));
-      $sql = "SELECT available FROM locum_availability WHERE bnum = ? AND timestamp > '$cache_cutoff'";
-      if ($statement = $mysqli->prepare($sql)) {
-        $statement->bind_param('i', $bnum);
-        $statement->execute();
-        $statement->store_result();
-        $statement->bind_result($available);
-        $statement->fetch();
-        $cached = $statement->num_rows;
-        $statement->close();
+      $cutoff_timestamp = time() - (60 * $this->locum_config['avail_cache']['cache_cutoff']);
+      if ($this->redis->zscore('availcache:timestamps', $bnum) > $cutoff_timestamp) {
+        $available = $this->redis->get('availcache:' . $bnum);
+        $cached = TRUE;
       }
     }
     if ($cached) {
-      $result = unserialize($available);
+      $result = json_decode($available, TRUE); // return as array
     }
     else {
       // Scrape and store new availability data
-      $bib = self::get_bib_item($bnum);
-      $skiporder = ($bib['mat_code'] == 's');
-      $status = $this->locum_cntl->item_status($bnum, $skiporder);
-      $result['avail'] = 0;
-      $result['total'] = count($status['items']);
-      $result['libuse'] = 0;
-      $result['holds'] = $status['holds'];
-      $result['on_order'] = $status['on_order'];
-      $result['orders'] = count($status['orders']) ? $status['orders'] : array();
-      $result['nextdue'] = 0;
+      if ($bib = self::get_bib_item($bnum)) {
+        $skiporder = ($bib['mat_code'] == 's');
+        $status = $this->locum_cntl->item_status($bnum, $skiporder);
+        $result['avail'] = 0;
+        $result['total'] = count($status['items']);
+        $result['libuse'] = 0;
+        $result['holds'] = $status['holds'];
+        $result['on_order'] = $status['on_order'];
+        $result['orders'] = count($status['orders']) ? $status['orders'] : array();
+        $result['nextdue'] = 0;
 
-      $result['locations'] = array();
-      $result['callnums'] = array();
-      $result['ages'] = array();
-      $result['branches'] = array();
-      $loc_codes = array();
-      if (count($status['items'])) {
-        foreach ($status['items'] as &$item) {
-          // Tally availability
-          $result['avail'] += $item['avail'];
-          // Tally libuse
-          $result['libuse'] += $item['libuse'];
+        $result['locations'] = array();
+        $result['callnums'] = array();
+        $result['ages'] = array();
+        $result['branches'] = array();
+        $loc_codes = array();
+        if (count($status['items'])) {
+          foreach ($status['items'] as &$item) {
+            // Tally availability
+            $result['avail'] += $item['avail'];
+            // Tally libuse
+            $result['libuse'] += $item['libuse'];
 
-          // Parse Locations
-          $result['locations'][$item['loc_code']][$item['age']]['avail'] += $item['avail'];
-          $result['locations'][$item['loc_code']][$item['age']]['total']++;
+            // Parse Locations
+            $result['locations'][$item['loc_code']][$item['age']]['avail'] += $item['avail'];
+            $result['locations'][$item['loc_code']][$item['age']]['total']++;
 
-          // Parse Ages
-          $result['ages'][$item['age']]['avail'] += $item['avail'];
-          $result['ages'][$item['age']]['total']++;
+            // Parse Ages
+            $result['ages'][$item['age']]['avail'] += $item['avail'];
+            $result['ages'][$item['age']]['total']++;
 
-          // Parse Branches
-          $result['branches'][$item['branch']]['avail'] += $item['avail'];
-          $result['branches'][$item['branch']]['total']++;
+            // Parse Branches
+            $result['branches'][$item['branch']]['avail'] += $item['avail'];
+            $result['branches'][$item['branch']]['total']++;
 
-          // Parse Callnums
-          if ($item['callnum'] !== $bib['callnum'] && strstr($bib['callnum'], $item['callnum'])) {
-            $item['callnum'] = $bib['callnum'];
-          }
-          $result['callnums'][$item['callnum']]['avail'] += $item['avail'];
-          $result['callnums'][$item['callnum']]['total']++;
+            // Parse Callnums
+            if ($item['callnum'] !== $bib['callnum'] && strstr($bib['callnum'], $item['callnum'])) {
+              $item['callnum'] = $bib['callnum'];
+            }
+            $result['callnums'][$item['callnum']]['avail'] += $item['avail'];
+            $result['callnums'][$item['callnum']]['total']++;
 
-          // Determine next item due date
-          if ($result['nextdue'] == 0 || ($item['due'] > 0 && $result['nextdue'] > $item['due'])) {
-            $result['nextdue'] = $item['due'];
-          }
-          // Parse location code
-          if (!in_array($item['loc_code'], $loc_codes) && trim($item['loc_code'])) {
-            $loc_codes[] = $item['loc_code'];
+            // Determine next item due date
+            if ($result['nextdue'] == 0 || ($item['due'] > 0 && $result['nextdue'] > $item['due'])) {
+              $result['nextdue'] = $item['due'];
+            }
+            // Parse location code
+            if (!in_array($item['loc_code'], $loc_codes) && trim($item['loc_code'])) {
+              $loc_codes[] = $item['loc_code'];
+            }
           }
         }
-      }
-      $result['items'] = $status['items'];
+        $result['items'] = $status['items'];
 
-      // Cache the result
-      $avail_ser = serialize($result);
-      if ($statement = $mysqli->prepare('REPLACE INTO locum_availability (bnum, available) VALUES (?, ?)')) {
-        $statement->bind_param('is', $bnum, $avail_ser);
-        $statement->execute();
-        $statement->close();
-      }
+        // Cache the result
+        $avail_ser = json_encode($result);
+        $this->redis->set('availcache:' . $bnum, $avail_ser);
+        $this->redis->zadd('availcache:timestamps', time(), $bnum);
 
-      // Store age cache
-      if ($statement = $mysqli->prepare('DELETE FROM locum_avail_ages WHERE bnum = ?')) {
-        $statement->bind_param('i', $bnum);
-        $statement->execute();
-        $statement->close();
-      }
-      if (count($result['ages'])) {
-        $sql = "INSERT INTO locum_avail_ages (bnum, age, count_avail, count_total, timestamp) VALUES (?, ?, ?, ?, NOW())";
-        $statement = $mysqli->prepare($sql);
-        foreach ($result['ages'] as $age => $age_info) {
-          $statement->bind_param('isii', $bnum, $age, $age_info['avail'], $age_info['total']);
+        // Store age cache
+        if ($statement = $mysqli->prepare('DELETE FROM locum_avail_ages WHERE bnum = ?')) {
+          $statement->bind_param('i', $bnum);
           $statement->execute();
+          $statement->close();
         }
-        $statement->close();
-      }
+        if (count($result['ages'])) {
+          $sql = "INSERT INTO locum_avail_ages (bnum, age, count_avail, count_total, timestamp) VALUES (?, ?, ?, ?, NOW())";
+          $statement = $mysqli->prepare($sql);
+          foreach ($result['ages'] as $age => $age_info) {
+            $statement->bind_param('isii', $bnum, $age, $age_info['avail'], $age_info['total']);
+            $statement->execute();
+          }
+          $statement->close();
+        }
 
-      // Store branch info cache
-      if ($statement = $mysqli->prepare('DELETE FROM locum_avail_branches WHERE bnum = ?')) {
-        $statement->bind_param('i', $bnum);
-        $statement->execute();
-        $statement->close();
-      }
-      if (count($result['branches'])) {
-        $sql = "INSERT INTO locum_avail_branches (bnum, branch, count_avail, count_total, timestamp) VALUES (?, ?, ?, ?, NOW())";
-        $statement = $mysqli->prepare($sql);
-        foreach ($result['branches'] as $branch => $branch_info) {
-          $statement->bind_param('isii', $bnum, $branch, $branch_info['avail'], $branch_info['total']);
+        // Store branch info cache
+        if ($statement = $mysqli->prepare('DELETE FROM locum_avail_branches WHERE bnum = ?')) {
+          $statement->bind_param('i', $bnum);
           $statement->execute();
+          $statement->close();
         }
-        $statement->close();
+        if (count($result['branches'])) {
+          $sql = "INSERT INTO locum_avail_branches (bnum, branch, count_avail, count_total, timestamp) VALUES (?, ?, ?, ?, NOW())";
+          $statement = $mysqli->prepare($sql);
+          foreach ($result['branches'] as $branch => $branch_info) {
+            $statement->bind_param('isii', $bnum, $branch, $branch_info['avail'], $branch_info['total']);
+            $statement->execute();
+          }
+          $statement->close();
+        }
       }
     }
+
     $mysqli->kill($mysqli->thread_id);
     $mysqli->close();
     unset($mysqli);
