@@ -577,6 +577,7 @@ class locum_server extends locum {
               $num_bibs = count($bib_arr_sliced);
               foreach ($bib_arr_sliced as $bnum => $init_bib_date) {
                 $locumclient->get_item_status($bnum, TRUE);
+                $this->putlog("Caching status for $bnum");
               }
               $this->putlog("Child process complete.  Checked $num_bibs records", 2);
               exit($i);

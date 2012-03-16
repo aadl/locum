@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sphinx:docset>
+<sphinx:schema>
+  <sphinx:field name="title"/>
+  <sphinx:field name="title_medium"/>
+  <sphinx:field name="addl_title"/>
+  <sphinx:field name="author"/>
+  <sphinx:field name="addl_author"/>
+  <sphinx:field name="series"/>
+  <sphinx:field name="callnum"/>
+  <sphinx:field name="publisher"/>
+  <sphinx:field name="pubyear"/>
+  <sphinx:field name="stdnum"/>
+  <sphinx:field name="notes"/>
+  <sphinx:field name="subjects"/>
+  <sphinx:field name="langcode"/>
+  <sphinx:field name="available"/>
+  <sphinx:field name="tag_idx"/>
+  <sphinx:field name="review_idx"/>
+  <sphinx:attr name="title_ord" type="str2ordinal" bits="32" default="0"/>
+  <sphinx:attr name="author_ord" type="str2ordinal" bits="32" default="0"/>
+  <sphinx:attr name="cover_code" type="int" bits="32" default="0"/>
+  <sphinx:attr name="author_null" type="int" bits="32" default="0"/>
+  <sphinx:attr name="pub_info" type="int" bits="32" default="0"/>
+  <sphinx:attr name="pub_year" type="int" bits="32" default="0"/>
+  <sphinx:attr name="loc_code" type="int" bits="32" default="0"/>
+  <sphinx:attr name="mat_code" type="int" bits="32" default="0"/>
+  <sphinx:attr name="lang" type="int" bits="32" default="0"/>
+  <sphinx:attr name="hold_count_week" type="int" bits="32" default="0"/>
+  <sphinx:attr name="hold_count_month" type="int" bits="32" default="0"/>
+  <sphinx:attr name="hold_count_year" type="int" bits="32" default="0"/>
+  <sphinx:attr name="hold_count_total" type="int" bits="32" default="0"/>
+  <sphinx:attr name="rating_idx" type="int" bits="32" default="0"/>
+  <sphinx:attr name="active" type="int" bits="32" default="0"/>
+  <sphinx:attr name="bib_created" type="timestamp" bits="32" default="0"/>
+  <sphinx:attr name="bib_lastupdate" type="timestamp" bits="32" default="0"/>
+  <sphinx:attr name="ages" type="multi"/>
+  <sphinx:attr name="locations" type="multi"/>
+</sphinx:schema>
