@@ -158,6 +158,7 @@ function prep_bib(&$bib) {
 
   $lc = new locum_client();
   $bib_status = $lc->get_item_status($bib['bnum'], FALSE, TRUE);
+  $formats = $lc->locum_config['formats'];
   unset($lc);
 
   if (count($bib_status['ages'])) {
@@ -191,6 +192,7 @@ function prep_bib(&$bib) {
   $bib['publisher'] = $bib['pub_info'];
   $bib['pubyear'] = $bib['pub_year'];
   $bib['langcode'] = $bib['lang'];
+  $bib['mat_name'] = $formats[$bib['mat_code']];
 
   // CRC32s
   $bib['pub_info'] = crc32($bib['pub_info']) + 4294967296;

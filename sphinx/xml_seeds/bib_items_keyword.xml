@@ -13,6 +13,7 @@
   <sphinx:field name="stdnum"/>
   <sphinx:field name="notes"/>
   <sphinx:field name="subjects"/>
+  <sphinx:field name="mat_name"/>
   <sphinx:field name="langcode"/>
   <sphinx:field name="available"/>
   <sphinx:field name="tag_idx"/>
