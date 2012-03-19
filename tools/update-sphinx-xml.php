@@ -164,7 +164,7 @@ function prep_bib(&$bib) {
   if (count($bib_status['ages'])) {
     $ages = array();
     foreach($bib_status['ages'] as $age => $details) {
-      $ages[] = crc32($age)+4294967296;
+      $ages[] = crc32($age) + 4294967296;
     }
     $bib['ages'] = implode(',', $ages);
     unset($ages);
@@ -172,7 +172,7 @@ function prep_bib(&$bib) {
   if (count($bib_status['locations'])) {
     $locs = array();
     foreach($bib_status['locations'] as $loc => $details) {
-      $locs[] = crc32($loc)+4294967296;
+      $locs[] = crc32($loc) + 4294967296;
     }
     $bib['locations'] = implode(',', $locs);
     unset($locs);
