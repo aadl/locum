@@ -164,7 +164,7 @@ function prep_bib(&$bib) {
   if (count($bib_status['ages'])) {
     $ages = array();
     foreach($bib_status['ages'] as $age => $details) {
-      $ages[] = crc32($age) + 4294967296;
+      $ages[] = sprintf('%u', crc32($age));
     }
     $bib['ages'] = implode(',', $ages);
     unset($ages);
@@ -172,7 +172,7 @@ function prep_bib(&$bib) {
   if (count($bib_status['locations'])) {
     $locs = array();
     foreach($bib_status['locations'] as $loc => $details) {
-      $locs[] = crc32($loc) + 4294967296;
+      $locs[] = sprintf('%u', crc32($loc));
     }
     $bib['locations'] = implode(',', $locs);
     unset($locs);
@@ -195,12 +195,12 @@ function prep_bib(&$bib) {
   $bib['mat_name'] = $formats[$bib['mat_code']];
 
   // CRC32s
-  $bib['pub_info'] = crc32($bib['pub_info']) + 4294967296;
-  $bib['lang'] = crc32($bib['lang']) + 4294967296;
-  $bib['loc_code'] = crc32($bib['loc_code']) + 4294967296;
-  $bib['mat_code'] = crc32($bib['mat_code']) + 4294967296;
-  $bib['titleattr'] = crc32(strtolower($bib['title'])) + 4294967296;
-  $bib['cover_code'] = crc32($bib['cover_img']) + 4294967296;
+  $bib['pub_info'] = sprintf('%u', crc32($bib['pub_info']));
+  $bib['lang'] = sprintf('%u', crc32($bib['lang']));
+  $bib['loc_code'] = sprintf('%u', crc32($bib['loc_code']));
+  $bib['mat_code'] = sprintf('%u', crc32($bib['mat_code']));
+  $bib['titleattr'] = sprintf('%u', crc32(strtolower($bib['title'])));
+  $bib['cover_code'] = sprintf('%u', crc32($bib['cover_img']));
 
   // Timestamps
   $bib['bib_created'] = strtotime($bib['bib_created']);
