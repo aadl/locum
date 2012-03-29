@@ -154,7 +154,7 @@ echo "Completed XML Generation in $main_time_minutes seconds\n";
 function prep_bib(&$bib) {
   // Item Status Fields
   $bib['ages'] = '';
-  $bib['locations'] = '';
+  $bib['branches'] = '';
 
   $lc = new locum_client();
   $bib_status = $lc->get_item_status($bib['bnum'], FALSE, TRUE);
@@ -169,13 +169,16 @@ function prep_bib(&$bib) {
     $bib['ages'] = implode(',', $ages);
     unset($ages);
   }
-  if (count($bib_status['locations'])) {
-    $locs = array();
-    foreach($bib_status['locations'] as $loc => $details) {
-      $locs[] = sprintf('%u', crc32($loc));
+  if (count($bib_status['branches'])) {
+    $branches = array();
+    if (count($bib_status['branches'])) {
+      $branches[] = sprintf('%u', crc32('any'));
     }
-    $bib['locations'] = implode(',', $locs);
-    unset($locs);
+    foreach($bib_status['branches'] as $branch => $details) {
+      $branches[] = sprintf('%u', crc32($loc));
+    }
+    $bib['branches'] = implode(',', $locs);
+    unset($branches);
   }
   $callnum = $bib['callnum'];
   foreach($bib_status['items'] as $item){

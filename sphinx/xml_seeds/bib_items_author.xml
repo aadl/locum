@@ -20,5 +20,5 @@
   <sphinx:attr name="bib_created" type="timestamp" bits="32" default="0"/>
   <sphinx:attr name="bib_lastupdate" type="timestamp" bits="32" default="0"/>
   <sphinx:attr name="ages" type="multi"/>
-  <sphinx:attr name="locations" type="multi"/>
+  <sphinx:attr name="branches" type="multi"/>
 </sphinx:schema>
