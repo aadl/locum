@@ -175,9 +175,9 @@ function prep_bib(&$bib) {
       $branches[] = sprintf('%u', crc32('any'));
     }
     foreach($bib_status['branches'] as $branch => $details) {
-      $branches[] = sprintf('%u', crc32($loc));
+      $branches[] = sprintf('%u', crc32($branch));
     }
-    $bib['branches'] = implode(',', $locs);
+    $bib['branches'] = implode(',', $branches);
     unset($branches);
   }
   $callnum = $bib['callnum'];
