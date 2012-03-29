@@ -171,11 +171,13 @@ function prep_bib(&$bib) {
   }
   if (count($bib_status['branches'])) {
     $branches = array();
+    foreach($bib_status['branches'] as $branch => $details) {
+      if ($details['avail']) {
+        $branches[] = sprintf('%u', crc32($branch));
+      }
+    }
     if (count($bib_status['branches'])) {
       $branches[] = sprintf('%u', crc32('any'));
-    }
-    foreach($bib_status['branches'] as $branch => $details) {
-      $branches[] = sprintf('%u', crc32($branch));
     }
     $bib['branches'] = implode(',', $branches);
     unset($branches);
