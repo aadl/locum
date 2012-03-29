@@ -176,7 +176,7 @@ function prep_bib(&$bib) {
         $branches[] = sprintf('%u', crc32($branch));
       }
     }
-    if (count($bib_status['branches'])) {
+    if (count($branches)) {
       $branches[] = sprintf('%u', crc32('any'));
     }
     $bib['branches'] = implode(',', $branches);
