@@ -194,6 +194,7 @@ function prep_bib(&$bib) {
   unset($bib_status);
 
   // Copy fields
+  $bib['series_attr'] = $bib['series'];
   $bib['publisher'] = $bib['pub_info'];
   $bib['pubyear'] = $bib['pub_year'];
   $bib['langcode'] = $bib['lang'];
@@ -204,7 +205,7 @@ function prep_bib(&$bib) {
   $bib['lang'] = sprintf('%u', crc32($bib['lang']));
   $bib['loc_code'] = sprintf('%u', crc32($bib['loc_code']));
   $bib['mat_code'] = sprintf('%u', crc32($bib['mat_code']));
-  $bib['titleattr'] = sprintf('%u', crc32(strtolower($bib['title'])));
+  $bib['title_attr'] = sprintf('%u', crc32(strtolower($bib['title'])));
   $bib['cover_code'] = sprintf('%u', crc32($bib['cover_img']));
 
   // Timestamps

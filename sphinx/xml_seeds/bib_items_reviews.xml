@@ -2,6 +2,7 @@
 <sphinx:docset>
 <sphinx:schema>
   <sphinx:field name="review_idx"/>
+  <sphinx:attr name="series_attr" type="string"/>
   <sphinx:attr name="title_ord" type="str2ordinal" bits="32" default="0"/>
   <sphinx:attr name="author_ord" type="str2ordinal" bits="32" default="0"/>
   <sphinx:attr name="author_null" type="int" bits="32" default="0"/>
