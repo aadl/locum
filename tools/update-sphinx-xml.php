@@ -156,6 +156,7 @@ function prep_bib(&$bib) {
   $bib['ages'] = '';
   $bib['branches'] = '';
 
+  // Availability Attributes
   $lc = new locum_client();
   $bib_status = $lc->get_item_status($bib['bnum'], FALSE, TRUE);
   $formats = $lc->locum_config['formats'];
@@ -193,8 +194,17 @@ function prep_bib(&$bib) {
   }
   unset($bib_status);
 
+  // Series
+  $series_arr = unserialize($bib['series']);
+  if (!is_array($series_arr)) {
+    $series_arr = array($bib['series']);
+  }
+  foreach ($series_arr as &$series) {
+    $series = sprintf('%u', crc32($series));
+  }
+  $bib['series_attr'] = implode(',', $series_arr);
+
   // Copy fields
-  $bib['series_attr'] = $bib['series'];
   $bib['publisher'] = $bib['pub_info'];
   $bib['pubyear'] = $bib['pub_year'];
   $bib['langcode'] = $bib['lang'];

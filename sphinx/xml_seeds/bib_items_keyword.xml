@@ -18,7 +18,6 @@
   <sphinx:field name="available"/>
   <sphinx:field name="tag_idx"/>
   <sphinx:field name="review_idx"/>
-  <sphinx:attr name="series_attr" type="string"/>
   <sphinx:attr name="title_ord" type="str2ordinal" bits="32" default="0"/>
   <sphinx:attr name="author_ord" type="str2ordinal" bits="32" default="0"/>
   <sphinx:attr name="cover_code" type="int" bits="32" default="0"/>
@@ -38,4 +37,5 @@
   <sphinx:attr name="bib_lastupdate" type="timestamp" bits="32" default="0"/>
   <sphinx:attr name="ages" type="multi"/>
   <sphinx:attr name="branches" type="multi"/>
+  <sphinx:attr name="series_attr" type="multi"/>
 </sphinx:schema>
