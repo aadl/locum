@@ -58,7 +58,7 @@ class locum_client extends locum {
     $bool = FALSE;
     $cl->SetMatchMode(SPH_MATCH_ALL);
 
-    if(!$term) {
+    if (!$term) {
       // Searches for everything (usually for browsing purposes--Hot/New Items, etc..)
       $cl->SetMatchMode(SPH_MATCH_EXTENDED2);
     } else {
@@ -70,22 +70,23 @@ class locum_client extends locum {
       $picbk_search = '(@callnum ^E)';
       $term = str_ireplace($picturebook,$picbk_search,$term);
       // Is it a boolean search?
-      if(preg_match("/ \| /i", $term) || preg_match("/ \-/i", $term) || preg_match("/ \!/i", $term)) {
+      if (preg_match("/ \| /i", $term) || preg_match("/ \-/i", $term) || preg_match("/ \!/i", $term)) {
         $cl->SetMatchMode(SPH_MATCH_BOOLEAN);
         $bool = TRUE;
       }
-      if(preg_match("/ OR /i", $term)) {
+      if (preg_match("/ OR /i", $term)) {
         $cl->SetMatchMode(SPH_MATCH_BOOLEAN);
         $term = preg_replace('/ OR /i',' | ',$term);
         $bool = TRUE;
       }
 
       // Is it a phrase search?
-      if(preg_match("/\"/i", $term) || preg_match("/\@/i", $term)) {
+      if (preg_match("/\"/i", $term) || preg_match("/\@/i", $term)) {
         $cl->SetMatchMode(SPH_MATCH_EXTENDED2);
         $bool = TRUE;
       }
     }
+
     // Set up for the various search types
     switch ($type) {
       case 'author':
@@ -122,7 +123,6 @@ class locum_client extends locum {
         $cl->SetFieldWeights(array('title' => 400, 'title_medium' => 30, 'author' => 70, 'addl_author' => 40, 'tag_idx' =>25, 'series' => 25, 'review_idx' => 10, 'notes' => 10, 'subjects' => 5 ));
         $idx = 'bib_items_keyword';
         break;
-
     }
 
     // Filter out the records we don't want shown, per locum.ini
@@ -137,7 +137,7 @@ class locum_client extends locum {
     }
 
     // Valid sort types are 'newest' and 'oldest'.  Default is relevance.
-    switch($sort_opt) {
+    switch ($sort_opt) {
       case 'newest':
         $cl->SetSortMode(SPH_SORT_EXTENDED, 'pub_year DESC, @relevance DESC');
         break;
@@ -178,13 +178,15 @@ class locum_client extends locum {
         $cl->SetSortMode(SPH_SORT_ATTR_DESC, 'title_ord');
         break;
       default:
-#        if ($type == 'title') {
-#          // We get better results in title matches if we also rank by title length
-#          $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
-#        } else {
+        $cl->SetSortMode(SPH_SORT_EXPR, "@weight + (hold_count_total)*0.02");
+/*
+        if ($type == 'title') {
+          // We get better results in title matches if we also rank by title length
+          $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
+        } else {
           //$cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC');
-	  $cl->SetSortMode(SPH_SORT_EXPR, "@weight + (hold_count_total)*0.02");
-#        }
+        }
+*/
         break;
     }
 
@@ -234,6 +236,7 @@ class locum_client extends locum {
     }
 
     $cl->SetRankingMode(SPH_RANK_SPH04);
+/*
     $cl->SetLimits(0, 5000, 5000);
     $sph_res_all = $cl->Query($term, $idx); // Grab all the data for the facetizer
 
@@ -244,21 +247,52 @@ class locum_client extends locum {
       $sph_res_all = $cl->Query($term, $idx);
       $forcedchange = 'yes';
     }
-
+*/
     // Paging/browsing through the result set.
     $cl->SetLimits((int) $offset, (int) $limit);
 
     // And finally.... we search.
-    $sph_res = $cl->Query($term, $idx);
+    $cl->AddQuery($term, $idx);
+
+    // CREATE FACETS
+    $cl->SetLimits(0, 1000); // Up to 1000 facets
+    $cl->SetArrayResult(TRUE); // Allow duplicate documents in result, for facet grouping
+
+    $cl->SetGroupBy('pub_year', SPH_GROUPBY_ATTR);
+    $cl->AddQuery($term, $idx);
+    $cl->ResetGroupBy();
+
+    $cl->SetGroupBy('mat_code', SPH_GROUPBY_ATTR, '@count desc');
+    $cl->AddQuery($term, $idx);
+    $cl->ResetGroupBy();
+
+    $cl->SetGroupBy('branches', SPH_GROUPBY_ATTR, '@count desc');
+    $cl->AddQuery($term, $idx);
+    $cl->ResetGroupBy();
+
+    $cl->SetGroupBy('ages', SPH_GROUPBY_ATTR, '@count desc');
+    $cl->AddQuery($term, $idx);
+    $cl->ResetGroupBy();
+
+    $cl->SetGroupBy('lang', SPH_GROUPBY_ATTR, '@count desc');
+    $cl->AddQuery($term, $idx);
+    $cl->ResetGroupBy();
+
+    $cl->SetGroupBy('series_attr', SPH_GROUPBY_ATTR, '@count desc');
+    $cl->AddQuery($term, $idx);
+    $cl->ResetGroupBy();
+
+    $results = $cl->RunQueries();
 
     // Include descriptors
-    $final_result_set['num_hits'] = $sph_res['total'];
-    if ($sph_res['total'] <= $this->locum_config['api_config']['suggestion_threshold'] || $forcedchange == 'yes') {
+    $final_result_set['num_hits'] = $results[0]['total'];
+    if ($results[0]['total'] <= $this->locum_config['api_config']['suggestion_threshold'] || $forcedchange == 'yes') {
       if ($this->locum_config['api_config']['use_yahoo_suggest'] == TRUE) {
         $final_result_set['suggestion'] = $this->yahoo_suggest($term_prestrip);
       }
     }
 
+    /*
     if (is_array($sph_res['matches'])) {
       foreach ($sph_res['matches'] as $bnum => $attr) {
         $bib_hits[] = (string)$bnum;
@@ -407,47 +441,54 @@ class locum_client extends locum {
     // Get the totals
     $facet_total = count($bib_hits_all);
     $final_result_set['num_hits'] = $facet_total;
+    */
 
-    // First, we have to get the values back, unsorted against the Sphinx-sorted array
-    if (count($bib_hits)) {
+    // Pull full records out of Couch
+    if ($final_result_set['num_hits']) {
       $skip_avail = $this->csv_parser($this->locum_config['format_special']['skip_avail']);
-      $init_bib_arr = $this->get_bib_items_arr($bib_hits);
-      //$utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
-      //$utfprep = $db->query($utf);
-      //$init_result =& $db->query($sql);
-      //$init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-      foreach ($init_bib_arr as $init_bib) {
-        $init_bib['doc'] = $init_bib['value'];
-        if($init_bib['doc']['bnum']){
+      $bib_hits = array();
+
+      foreach ($results[0]['matches'] as $match) {
+        $bib_hits[] = (string) $match['id'];
+      }
+
+      $final_result_set['results'] = $this->get_bib_items_arr($bib_hits);
+
+      foreach ($final_result_set['results'] as &$result) {
+        $result['doc'] = $result['value'];
+        if ($result['doc']['bnum']){
           // Get availability
-          if (in_array($init_bib['doc']['mat_code'], $skip_avail)) {
-            $init_bib['doc']['status'] = $this->get_item_status($init_bib['doc']['bnum'], FALSE, TRUE);
+          if (in_array($result['doc']['mat_code'], $skip_avail)) {
+            $result['doc']['status'] = $this->get_item_status($result['doc']['bnum'], FALSE, TRUE);
           }
           else {
-            $init_bib['doc']['status'] = $this->get_item_status($init_bib['doc']['bnum']);
+            $result['doc']['status'] = $this->get_item_status($result['doc']['bnum']);
           }
         }
-        // Clean up the Stdnum
-        //$init_bib['doc']['stdnum'] = preg_replace('/[^\d]/','', $init_bib['doc']['stdnum']);
-        if($init_bib['doc']['sphinxid']){
+        /*
+        if ($init_bib['doc']['sphinxid']){
           $bib_reference_arr[(string) $init_bib['doc']['sphinxid']] = $init_bib['doc'];
         }
         else {
           $bib_reference_arr[(string) $init_bib['doc']['_id']] = $init_bib['doc'];
         }
+        */
       }
-
+/*
       // Now we reconcile against the sphinx result
       foreach ($sph_res_all['matches'] as $sph_bnum => $sph_binfo) {
         if (in_array($sph_bnum, $bib_hits)) {
           $final_result_set['results'][] = $bib_reference_arr[$sph_bnum];
         }
       }
+*/
     }
 
-    $db->disconnect();
-    $final_result_set['facets'] = $this->facetizer($bib_hits_all);
-    if($forcedchange == 'yes') { $final_result_set['changed'] = 'yes'; }
+    $final_result_set['facets'] = $this->sphinx_facetizer($results);
+
+    if ($forcedchange == 'yes') {
+      $final_result_set['changed'] = 'yes';
+    }
 
     return $final_result_set;
 
@@ -511,6 +552,89 @@ class locum_client extends locum {
       $db->disconnect();
       return $result;
     }
+  }
+
+  public function sphinx_facetizer($results) {
+    // Build lookup hashtable
+    $hash = array();
+
+    // Ages
+    foreach ($this->locum_config['ages'] as $code => $name) {
+      $index = sprintf('%u', crc32($code));
+      $hash['ages'][$index] = $name;
+    }
+    ksort($hash['ages']);
+
+    // Branches
+    $any_code = sprintf('%u', crc32('any'));
+    $hash['branches'][$any_code] = 'any';
+    foreach ($this->locum_config['branches'] as $code => $name) {
+      $index = sprintf('%u', crc32($code));
+      $hash['branches'][$index] = $name;
+    }
+    ksort($hash['branches']);
+
+    // Material Formats
+    foreach ($this->locum_config['formats'] as $code => $name) {
+      $index = sprintf('%u', crc32($code));
+      $hash['formats'][$index] = $name;
+    }
+    ksort($hash['formats']);
+
+    // Languages
+    foreach ($this->locum_config['languages'] as $code => $name) {
+      $index = sprintf('%u', crc32($code));
+      $hash['languages'][$index] = $name;
+    }
+    ksort($hash['languages']);
+
+    $facets = array();
+
+    // Pub Year
+    foreach ($results[1]['matches'] as $match) {
+      $pubyear = $match['attrs']['@groupby'];
+      $count = $match['attrs']['@count'];
+      $facets['pub_year'][$pubyear] = $count;
+    }
+
+    // Mat Code
+    foreach ($results[2]['matches'] as $match) {
+      $mat_crc = $match['attrs']['@groupby'];
+      $count = $match['attrs']['@count'];
+      $format = $hash['formats'][$mat_crc];
+      $facets['mat'][$format] = $count;
+    }
+
+    // Branches
+    foreach ($results[3]['matches'] as $match) {
+      $b_crc = $match['attrs']['@groupby'];
+      $count = $match['attrs']['@count'];
+      $branch = $hash['branches'][$b_crc];
+      $facets['avail'][$branch] = $count;
+    }
+
+    // Ages
+    foreach ($results[4]['matches'] as $match) {
+      $age = $hash['ages'][$match['attrs']['@groupby']];
+      $count = $match['attrs']['@count'];
+      $facets['ages'][$age] = $count;
+    }
+
+    // Languages
+    foreach ($results[5]['matches'] as $match) {
+      $language = $hash['languages'][$match['attrs']['@groupby']];
+      $count = $match['attrs']['@count'];
+      $facets['lang'][$language] = $count;
+    }
+
+    // Series
+    foreach ($results[6]['matches'] as $match) {
+      $series = $match['attrs']['@groupby'];
+      $count = $match['attrs']['@count'];
+      $facets['series'][$series] = $count;
+    }
+
+    return $facets;
   }
 
   /**
