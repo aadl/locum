@@ -455,14 +455,14 @@ class locum_client extends locum {
       $final_result_set['results'] = $this->get_bib_items_arr($bib_hits);
 
       foreach ($final_result_set['results'] as &$result) {
-        $result['doc'] = $result['value'];
-        if ($result['doc']['bnum']){
+        $result = $result['value'];
+        if ($result['bnum']){
           // Get availability
-          if (in_array($result['doc']['mat_code'], $skip_avail)) {
-            $result['doc']['status'] = $this->get_item_status($result['doc']['bnum'], FALSE, TRUE);
+          if (in_array($result['mat_code'], $skip_avail)) {
+            $result['status'] = $this->get_item_status($result['bnum'], FALSE, TRUE);
           }
           else {
-            $result['doc']['status'] = $this->get_item_status($result['doc']['bnum']);
+            $result['status'] = $this->get_item_status($result['bnum']);
           }
         }
         /*
@@ -561,7 +561,7 @@ class locum_client extends locum {
     // Ages
     foreach ($this->locum_config['ages'] as $code => $name) {
       $index = sprintf('%u', crc32($code));
-      $hash['ages'][$index] = $name;
+      $hash['ages'][$index] = strtolower($name);
     }
     ksort($hash['ages']);
 
@@ -570,21 +570,21 @@ class locum_client extends locum {
     $hash['branches'][$any_code] = 'any';
     foreach ($this->locum_config['branches'] as $code => $name) {
       $index = sprintf('%u', crc32($code));
-      $hash['branches'][$index] = $name;
+      $hash['branches'][$index] = $code;
     }
     ksort($hash['branches']);
 
     // Material Formats
     foreach ($this->locum_config['formats'] as $code => $name) {
       $index = sprintf('%u', crc32($code));
-      $hash['formats'][$index] = $name;
+      $hash['formats'][$index] = $code;
     }
     ksort($hash['formats']);
 
     // Languages
     foreach ($this->locum_config['languages'] as $code => $name) {
       $index = sprintf('%u', crc32($code));
-      $hash['languages'][$index] = $name;
+      $hash['languages'][$index] = $code;
     }
     ksort($hash['languages']);
 
