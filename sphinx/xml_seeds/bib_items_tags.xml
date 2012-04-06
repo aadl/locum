@@ -7,6 +7,7 @@
   <sphinx:attr name="author_null" type="int" bits="32" default="0"/>
   <sphinx:attr name="pub_info" type="int" bits="32" default="0"/>
   <sphinx:attr name="pub_year" type="int" bits="32" default="0"/>
+  <sphinx:attr name="pub_decade" type="int" bits="32" default="0"/>
   <sphinx:attr name="loc_code" type="int" bits="32" default="0"/>
   <sphinx:attr name="mat_code" type="int" bits="32" default="0"/>
   <sphinx:attr name="lang" type="int" bits="32" default="0"/>

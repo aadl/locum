@@ -209,6 +209,7 @@ function prep_bib(&$bib) {
   $bib['pubyear'] = $bib['pub_year'];
   $bib['langcode'] = $bib['lang'];
   $bib['mat_name'] = $formats[$bib['mat_code']];
+  $bib['pub_decade'] = floor($bib['pub_year'] / 10) * 10;
 
   // CRC32s
   $bib['pub_info'] = sprintf('%u', crc32($bib['pub_info']));
