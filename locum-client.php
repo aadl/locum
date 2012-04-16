@@ -29,7 +29,6 @@ class locum_client extends locum {
    * @return array String-keyed result set
    */
   public function search($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE, $limit_available = FALSE, $show_inactive = FALSE) {
-dpm(func_get_args());
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($type, $term, $limit, $offset, $sort_opt, $format_array, $location_array, $facet_args, $override_search_filter, $limit_available);
@@ -265,7 +264,6 @@ dpm(func_get_args());
 
     // Filter by availability
     if ($limit_available) {
-dpm($this->string_poly($limit_available));
       $cl->SetFilter('branches', array($this->string_poly($limit_available)));
     }
 
