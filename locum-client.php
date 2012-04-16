@@ -29,6 +29,7 @@ class locum_client extends locum {
    * @return array String-keyed result set
    */
   public function search($type, $term, $limit, $offset, $sort_opt = NULL, $format_array = array(), $location_array = array(), $facet_args = array(), $override_search_filter = FALSE, $limit_available = FALSE, $show_inactive = FALSE) {
+dpm(func_get_args());
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($type, $term, $limit, $offset, $sort_opt, $format_array, $location_array, $facet_args, $override_search_filter, $limit_available);
@@ -51,7 +52,6 @@ class locum_client extends locum {
     $final_result_set['type'] = trim($type);
 
     $cl = new SphinxClient();
-
     $cl->SetServer($this->locum_config['sphinx_config']['server_addr'], (int) $this->locum_config['sphinx_config']['server_port']);
 
     // Defaults to 'keyword', non-boolean
@@ -179,14 +179,6 @@ class locum_client extends locum {
         break;
       default:
         $cl->SetSortMode(SPH_SORT_EXPR, "@weight + (hold_count_total)*0.02");
-/*
-        if ($type == 'title') {
-          // We get better results in title matches if we also rank by title length
-          $cl->SetSortMode(SPH_SORT_EXTENDED, 'titlelength ASC, @relevance DESC');
-        } else {
-          //$cl->SetSortMode(SPH_SORT_EXTENDED, '@relevance DESC');
-        }
-*/
         break;
     }
 
@@ -197,7 +189,9 @@ class locum_client extends locum {
           $filter_arr_mat[] = $this->string_poly(trim($format));
         }
       }
-      if (count($filter_arr_mat)) { $cl->SetFilter('mat_code', $filter_arr_mat); }
+      if (count($filter_arr_mat)) {
+        $cl->SetFilter('mat_code', $filter_arr_mat);
+      }
     }
 
     // Filter by location
@@ -207,32 +201,72 @@ class locum_client extends locum {
           $filter_arr_loc[] = $this->string_poly(trim($location));
         }
       }
-      if (count($filter_arr_loc)) { $cl->SetFilter('loc_code', $filter_arr_loc); }
+      if (count($filter_arr_loc)) {
+        $cl->SetFilter('loc_code', $filter_arr_loc);
+      }
     }
 
     // Filter by pub_year
-    if (strpos($facet_args['facet_year'][0], '-') !== FALSE) {
-      $min_year = 1;
-      $max_year = 9999;
+    if ($facet_args['facet_year']) {
+      if (strpos($facet_args['facet_year'][0], '-') !== FALSE) {
+        $min_year = 1;
+        $max_year = 9999;
 
-      $args = explode('-', $facet_args['facet_year'][0]);
-      $min_arg = (int) $args[0];
-      $max_arg = (int) $args[1];
+        $args = explode('-', $facet_args['facet_year'][0]);
+        $min_arg = (int) $args[0];
+        $max_arg = (int) $args[1];
 
-      if ($min_arg && ($min_arg > $min_year)) {
-        $min_year = $min_arg;
+        if ($min_arg && ($min_arg > $min_year)) {
+          $min_year = $min_arg;
+        }
+        if ($max_arg && ($max_arg < $max_year)) {
+          $max_year = $max_arg;
+        }
+
+        $cl->setFilterRange('pub_year', $min_year, $max_year);
       }
-      if ($max_arg && ($max_arg < $max_year)) {
-        $max_year = $max_arg;
+      else {
+        $cl->SetFilter('pub_year', $facet_args['facet_year']);
       }
+    }
 
-      $cl->setFilterRange('pub_year', $min_year, $max_year);
-      unset($facet_args['facet_year']);
+    // Filter by pub_decade
+    if ($facet_args['facet_decade']) {
+      $cl->SetFilter('pub_decade', $facet_args['facet_decade']);
+    }
+
+    // Filter by Series
+    if (count($facet_args['facet_series'])) {
+      foreach ($facet_args['facet_series'] as &$facet_series) {
+        $facet_series = $this->string_poly($facet_series);
+      }
+      $cl->SetFilter('series_attr', $facet_args['facet_series']);
+    }
+
+    // Filter by Language
+    if (count($facet_args['facet_lang'])) {
+      foreach ($facet_args['facet_lang'] as &$facet_lang) {
+        $facet_lang = $this->string_poly($facet_lang);
+      }
+      $cl->SetFilter('lang', $facet_args['facet_lang']);
     }
 
     // Filter inactive records
     if (!$show_inactive) {
       $cl->SetFilter('active', array('0'), TRUE);
+    }
+
+    // Filter by age
+    if (count($facet_args['age'])) {
+      foreach($facet_args['age'] as $age_facet) {
+        $cl->SetFilter('ages', array($this->string_poly($age_facet)));
+      }
+    }
+
+    // Filter by availability
+    if ($limit_available) {
+dpm($this->string_poly($limit_available));
+      $cl->SetFilter('branches', array($this->string_poly($limit_available)));
     }
 
     $cl->SetRankingMode(SPH_RANK_SPH04);
@@ -259,6 +293,10 @@ class locum_client extends locum {
     $cl->SetArrayResult(TRUE); // Allow duplicate documents in result, for facet grouping
 
     $cl->SetGroupBy('pub_year', SPH_GROUPBY_ATTR);
+    $cl->AddQuery($term, $idx);
+    $cl->ResetGroupBy();
+
+    $cl->SetGroupBy('pub_decade', SPH_GROUPBY_ATTR);
     $cl->AddQuery($term, $idx);
     $cl->ResetGroupBy();
 
@@ -292,157 +330,6 @@ class locum_client extends locum {
       }
     }
 
-    /*
-    if (is_array($sph_res['matches'])) {
-      foreach ($sph_res['matches'] as $bnum => $attr) {
-        $bib_hits[] = (string)$bnum;
-      }
-    }
-    if (is_array($sph_res_all['matches'])) {
-      foreach ($sph_res_all['matches'] as $bnum => $attr) {
-        $bib_hits_all[] = (string)$bnum;
-      }
-    }
-
-    // Limit list to available
-    if ($limit_available && $final_result_set['num_hits'] && (array_key_exists($limit_available, $this->locum_config['branches']) || $limit_available == 'any')) {
-
-      $limit_available = trim(strval($limit_available));
-
-      // Remove bibs that we know are not available
-      $cache_cutoff = date("Y-m-d H:i:00", time() - (60 * $this->locum_config['avail_cache']['cache_cutoff']));
-
-      // Remove bibs that are not in this location
-      $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
-      $utfprep = $db->query($utf);
-
-      $sql = "SELECT bnum, branch, count_avail FROM locum_avail_branches WHERE bnum IN (" . implode(", ", $bib_hits_all) . ") AND timestamp > '$cache_cutoff'";
-      $init_result =& $db->query($sql);
-      if ($init_result) {
-        $branch_info_cache = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-        $bad_bibs = array();
-        $good_bibs = array();
-        foreach ($branch_info_cache as $item_binfo) {
-          if (($item_binfo['branch'] == $limit_available || $limit_available == 'any') && $item_binfo['count_avail'] > 0) {
-            if (!in_array($item_binfo['bnum'], $good_bibs)) {
-              $good_bibs[] = (string)$item_binfo['bnum'];
-            }
-          } else {
-            $bad_bibs[] = (string)$item_binfo['bnum'];
-          }
-        }
-      }
-      $unavail_bibs = array_values(array_diff($bad_bibs, $good_bibs));
-      $bib_hits_all = array_values(array_diff($bib_hits_all, $unavail_bibs));
-
-      // rebuild from the full list
-      unset($bib_hits);
-      $available_count = 0;
-      foreach ($bib_hits_all as $key => $bib_hit) {
-        $bib_avail = $this->get_item_status($bib_hit);
-        if ($limit_available == 'any') {
-          $available = $bib_avail['avail'];
-        } else {
-          $available = $bib_avail['branches'][$limit_available]['avail'];
-        }
-        if ($available) {
-          $available_count++;
-          if ($available_count > $offset) {
-            $bib_hits[] = $bib_hit;
-            if (count($bib_hits) == $limit) {
-              //found as many as we need for this page
-              break;
-            }
-          }
-        } else {
-          // remove the bib from the bib_hits_all array
-          unset($bib_hits_all[$key]);
-        }
-      }
-
-      // trim out the rest of the array based on *any* cache value
-      if(!empty($bib_hits_all)) {
-        $sql = "SELECT bnum FROM locum_avail_branches WHERE bnum IN (" . implode(",", $bib_hits_all) . ") AND count_avail > 0";
-        $init_result =& $db->query($sql);
-        if ($init_result) {
-          $avail_bib_arr = $init_result->fetchCol();
-          foreach ($bib_hits_all as $bnum_avail_chk) {
-            if (in_array($bnum_avail_chk, $avail_bib_arr)) {
-              $new_bib_hits_all[] = $bnum_avail_chk;
-            }
-          }
-        }
-        $bib_hits_all = $new_bib_hits_all;
-        unset($new_bib_hits_all);
-      }
-    }
-
-    // Refine by facets
-
-    if (count($facet_args)) {
-      $where = '';
-
-      // Series
-      if ($facet_args['facet_series']) {
-        $where .= ' AND (';
-        $or = '';
-        foreach ($facet_args['facet_series'] as $series) {
-          $where .= $or . ' series LIKE \'' . $db->escape($series, 'text') . '%\'';
-          $or = ' OR';
-        }
-        $where .= ')';
-      }
-
-      // Language
-      if ($facet_args['facet_lang']) {
-        foreach ($facet_args['facet_lang'] as $lang) {
-          $lang_arr[] = $db->quote($lang, 'text');
-        }
-        $where .= ' AND lang IN (' . implode(', ', $lang_arr) . ')';
-      }
-
-      // Pub. Year
-      if ($facet_args['facet_year']) {
-        $where .= ' AND pub_year IN (' . implode(', ', $facet_args['facet_year']) . ')';
-      }
-
-      // Pub. Decade
-      if ($facet_args['facet_decade']) {
-        $where .= ' AND pub_decade IN (' . implode(', ', $facet_args['facet_decade']) . ')';
-      }
-
-      // Ages
-      if (count($facet_args['age'])) {
-        $age_or = '';
-        $age_sql_cond = '';
-        foreach ($facet_args['age'] as $facet_age) {
-          $age_sql_cond .= $age_or . "age = '$facet_age'";
-          $age_or = ' OR ';
-        }
-        $sql = 'SELECT DISTINCT(bnum) FROM locum_avail_ages WHERE bnum IN (' . implode(', ', $bib_hits_all) . ") AND ($age_sql_cond)";
-        $init_result =& $db->query($sql);
-        $age_hits = $init_result->fetchCol();
-        $bib_hits_all = array_intersect($bib_hits_all, $age_hits);
-      }
-
-      if(!empty($bib_hits_all)) {
-        $sql1 = 'SELECT bnum FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where;
-        $sql2 = 'SELECT CAST(bnum as CHAR(12)) FROM locum_facet_heap WHERE bnum IN (' . implode(', ', $bib_hits_all) . ')' . $where . ' ORDER BY FIELD(bnum,' . implode(', ', $bib_hits_all) . ") LIMIT $offset, $limit";
-        $utf = "SET NAMES 'utf8' COLLATE 'utf8_unicode_ci'";
-        $utfprep = $db->query($utf);
-        $init_result =& $db->query($sql1);
-        $bib_hits_all = $init_result->fetchCol();
-        $init_result =& $db->query($sql2);
-        $bib_hits = $init_result->fetchCol();
-      }
-
-    }
-
-    // Get the totals
-    $facet_total = count($bib_hits_all);
-    $final_result_set['num_hits'] = $facet_total;
-    */
-
     // Pull full records out of Couch
     if ($final_result_set['num_hits']) {
       $skip_avail = $this->csv_parser($this->locum_config['format_special']['skip_avail']);
@@ -457,31 +344,10 @@ class locum_client extends locum {
       foreach ($final_result_set['results'] as &$result) {
         $result = $result['value'];
         if ($result['bnum']){
-          // Get availability
-          if (in_array($result['mat_code'], $skip_avail)) {
-            $result['status'] = $this->get_item_status($result['bnum'], FALSE, TRUE);
-          }
-          else {
-            $result['status'] = $this->get_item_status($result['bnum']);
-          }
-        }
-        /*
-        if ($init_bib['doc']['sphinxid']){
-          $bib_reference_arr[(string) $init_bib['doc']['sphinxid']] = $init_bib['doc'];
-        }
-        else {
-          $bib_reference_arr[(string) $init_bib['doc']['_id']] = $init_bib['doc'];
-        }
-        */
-      }
-/*
-      // Now we reconcile against the sphinx result
-      foreach ($sph_res_all['matches'] as $sph_bnum => $sph_binfo) {
-        if (in_array($sph_bnum, $bib_hits)) {
-          $final_result_set['results'][] = $bib_reference_arr[$sph_bnum];
+          // Get availability (Only cached)
+          $result['status'] = $this->get_item_status($result['bnum'], FALSE, TRUE);
         }
       }
-*/
     }
 
     $final_result_set['facets'] = $this->sphinx_facetizer($results);
@@ -560,78 +426,105 @@ class locum_client extends locum {
 
     // Ages
     foreach ($this->locum_config['ages'] as $code => $name) {
-      $index = sprintf('%u', crc32($code));
+      $index = $this->string_poly($code);
       $hash['ages'][$index] = strtolower($name);
     }
     ksort($hash['ages']);
 
     // Branches
-    $any_code = sprintf('%u', crc32('any'));
+    $any_code = $this->string_poly('any');
     $hash['branches'][$any_code] = 'any';
     foreach ($this->locum_config['branches'] as $code => $name) {
-      $index = sprintf('%u', crc32($code));
+      $index = $this->string_poly($code);
       $hash['branches'][$index] = $code;
     }
     ksort($hash['branches']);
 
     // Material Formats
     foreach ($this->locum_config['formats'] as $code => $name) {
-      $index = sprintf('%u', crc32($code));
+      $index = $this->string_poly($code);
       $hash['formats'][$index] = $code;
     }
     ksort($hash['formats']);
 
     // Languages
     foreach ($this->locum_config['languages'] as $code => $name) {
-      $index = sprintf('%u', crc32($code));
+      $index = $this->string_poly($code);
       $hash['languages'][$index] = $code;
     }
     ksort($hash['languages']);
 
-    $facets = array();
+    $facets = array('pub_year',
+                    'pub_decade',
+                    'mat',
+                    'avail',
+                    'ages',
+                    'lang',
+                    'series');
 
     // Pub Year
-    foreach ($results[1]['matches'] as $match) {
-      $pubyear = $match['attrs']['@groupby'];
-      $count = $match['attrs']['@count'];
-      $facets['pub_year'][$pubyear] = $count;
+    if (is_array($results[1]['matches'])) {
+      foreach ($results[1]['matches'] as $match) {
+        $pubyear = $match['attrs']['@groupby'];
+        $count = $match['attrs']['@count'];
+        $facets['pub_year'][$pubyear] = $count;
+      }
+    }
+
+    // Pub Decade
+    if (is_array($results[2]['matches'])) {
+      foreach ($results[2]['matches'] as $match) {
+        $pubdecade = $match['attrs']['@groupby'];
+        $count = $match['attrs']['@count'];
+        $facets['pub_decade'][$pubdecade] = $count;
+      }
     }
 
     // Mat Code
-    foreach ($results[2]['matches'] as $match) {
-      $mat_crc = $match['attrs']['@groupby'];
-      $count = $match['attrs']['@count'];
-      $format = $hash['formats'][$mat_crc];
-      $facets['mat'][$format] = $count;
+    if (is_array($results[3]['matches'])) {
+      foreach ($results[3]['matches'] as $match) {
+        $mat_crc = $match['attrs']['@groupby'];
+        $count = $match['attrs']['@count'];
+        $format = $hash['formats'][$mat_crc];
+        $facets['mat'][$format] = $count;
+      }
     }
 
     // Branches
-    foreach ($results[3]['matches'] as $match) {
-      $b_crc = $match['attrs']['@groupby'];
-      $count = $match['attrs']['@count'];
-      $branch = $hash['branches'][$b_crc];
-      $facets['avail'][$branch] = $count;
+    if (is_array($results[4]['matches'])) {
+      foreach ($results[4]['matches'] as $match) {
+        $b_crc = $match['attrs']['@groupby'];
+        $count = $match['attrs']['@count'];
+        $branch = $hash['branches'][$b_crc];
+        $facets['avail'][$branch] = $count;
+      }
     }
 
     // Ages
-    foreach ($results[4]['matches'] as $match) {
-      $age = $hash['ages'][$match['attrs']['@groupby']];
-      $count = $match['attrs']['@count'];
-      $facets['ages'][$age] = $count;
+    if (is_array($results[5]['matches'])) {
+      foreach ($results[5]['matches'] as $match) {
+        $age = $hash['ages'][$match['attrs']['@groupby']];
+        $count = $match['attrs']['@count'];
+        $facets['ages'][$age] = $count;
+      }
     }
 
     // Languages
-    foreach ($results[5]['matches'] as $match) {
-      $language = $hash['languages'][$match['attrs']['@groupby']];
-      $count = $match['attrs']['@count'];
-      $facets['lang'][$language] = $count;
+    if (is_array($results[6]['matches'])) {
+      foreach ($results[6]['matches'] as $match) {
+        $language = $hash['languages'][$match['attrs']['@groupby']];
+        $count = $match['attrs']['@count'];
+        $facets['lang'][$language] = $count;
+      }
     }
 
     // Series
-    foreach ($results[6]['matches'] as $match) {
-      $series = $match['attrs']['@groupby'];
-      $count = $match['attrs']['@count'];
-      $facets['series'][$series] = $count;
+    if (is_array($results[6]['matches'])) {
+      foreach ($results[7]['matches'] as $match) {
+        $series = $match['attrs']['@groupby'];
+        $count = $match['attrs']['@count'];
+        $facets['series'][$series] = $count;
+      }
     }
 
     return $facets;
@@ -650,7 +543,7 @@ class locum_client extends locum {
     }
 
     $result = array();
-    $mysqli = new mysqli($this->mysqli_host, $this->mysqli_username, $this->mysqli_passwd, $this->mysqli_dbname);
+
     if ($cache_only) {
       // use the cache table, regardless of timestamp
       if ($available = $this->redis->get('availcache:' . $bnum)) {
@@ -665,6 +558,7 @@ class locum_client extends locum {
         $cached = TRUE;
       }
     }
+
     if ($cached) {
       $result = json_decode($available, TRUE); // return as array
     }
@@ -732,43 +626,34 @@ class locum_client extends locum {
         } catch (Exception $e) {
 
         }
-        // Store age cache
-        if ($statement = $mysqli->prepare('DELETE FROM locum_avail_ages WHERE bnum = ?')) {
-          $statement->bind_param('i', $bnum);
-          $statement->execute();
-          $statement->close();
-        }
-        if (count($result['ages'])) {
-          $sql = "INSERT INTO locum_avail_ages (bnum, age, count_avail, count_total, timestamp) VALUES (?, ?, ?, ?, NOW())";
-          $statement = $mysqli->prepare($sql);
-          foreach ($result['ages'] as $age => $age_info) {
-            $statement->bind_param('isii', $bnum, $age, $age_info['avail'], $age_info['total']);
-            $statement->execute();
+
+        // Update Location Attributes in Sphinx
+        $branches = array();
+        foreach($result['branches'] as $branch => $details) {
+          if ($details['avail']) {
+            $branches[] = crc32($branch); // UpdateAttributes automatically converts to unsigned
           }
-          $statement->close();
+        }
+        if (count($branches)) {
+          $branches[] = crc32('any'); // UpdateAttributes automatically converts to unsigned
         }
 
-        // Store branch info cache
-        if ($statement = $mysqli->prepare('DELETE FROM locum_avail_branches WHERE bnum = ?')) {
-          $statement->bind_param('i', $bnum);
-          $statement->execute();
-          $statement->close();
-        }
-        if (count($result['branches'])) {
-          $sql = "INSERT INTO locum_avail_branches (bnum, branch, count_avail, count_total, timestamp) VALUES (?, ?, ?, ?, NOW())";
-          $statement = $mysqli->prepare($sql);
-          foreach ($result['branches'] as $branch => $branch_info) {
-            $statement->bind_param('isii', $bnum, $branch, $branch_info['avail'], $branch_info['total']);
-            $statement->execute();
-          }
-          $statement->close();
-        }
+        require_once($this->locum_config['sphinx_config']['api_path'] . '/sphinxapi.php');
+        $cl = new SphinxClient();
+        $cl->SetServer($this->locum_config['sphinx_config']['server_addr'], (int) $this->locum_config['sphinx_config']['server_port']);
+
+        // Specify indexes to update (abstract into config?)
+        $indexes = 'bib_items_keyword ' .
+                   'bib_items_author ' .
+                   'bib_items_title ' .
+                   'bib_items_subject ' .
+                   'bib_items_callnum ' .
+                   'bib_items_tags ' .
+                   'bib_items_reviews';
+
+        $cl->UpdateAttributes($indexes, array('branches'), array($bnum => array($branches)), TRUE);
       }
     }
-
-    $mysqli->kill($mysqli->thread_id);
-    $mysqli->close();
-    unset($mysqli);
 
     return $result;
   }

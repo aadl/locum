@@ -160,12 +160,11 @@ function prep_bib(&$bib) {
   $lc = new locum_client();
   $bib_status = $lc->get_item_status($bib['bnum'], FALSE, TRUE);
   $formats = $lc->locum_config['formats'];
-  unset($lc);
 
   if (count($bib_status['ages'])) {
     $ages = array();
     foreach($bib_status['ages'] as $age => $details) {
-      $ages[] = sprintf('%u', crc32($age));
+      $ages[] = $lc->string_poly($age);
     }
     $bib['ages'] = implode(',', $ages);
     unset($ages);
@@ -174,11 +173,11 @@ function prep_bib(&$bib) {
     $branches = array();
     foreach($bib_status['branches'] as $branch => $details) {
       if ($details['avail']) {
-        $branches[] = sprintf('%u', crc32($branch));
+        $branches[] = $lc->string_poly($branch);
       }
     }
     if (count($branches)) {
-      $branches[] = sprintf('%u', crc32('any'));
+      $branches[] = $lc->string_poly('any');
     }
     $bib['branches'] = implode(',', $branches);
     unset($branches);
@@ -200,7 +199,7 @@ function prep_bib(&$bib) {
     $series_arr = array($bib['series']);
   }
   foreach ($series_arr as &$series) {
-    $series = sprintf('%u', crc32($series));
+    $series = $lc->string_poly($series);
   }
   $bib['series_attr'] = implode(',', $series_arr);
 
@@ -212,12 +211,12 @@ function prep_bib(&$bib) {
   $bib['pub_decade'] = floor($bib['pub_year'] / 10) * 10;
 
   // CRC32s
-  $bib['pub_info'] = sprintf('%u', crc32($bib['pub_info']));
-  $bib['lang'] = sprintf('%u', crc32($bib['lang']));
-  $bib['loc_code'] = sprintf('%u', crc32($bib['loc_code']));
-  $bib['mat_code'] = sprintf('%u', crc32($bib['mat_code']));
-  $bib['title_attr'] = sprintf('%u', crc32(strtolower($bib['title'])));
-  $bib['cover_code'] = sprintf('%u', crc32($bib['cover_img']));
+  $bib['pub_info'] = $lc->string_poly($bib['pub_info']);
+  $bib['lang'] = $lc->string_poly($bib['lang']);
+  $bib['loc_code'] = $lc->string_poly($bib['loc_code']);
+  $bib['mat_code'] = $lc->string_poly($bib['mat_code']);
+  $bib['title_attr'] = $lc->string_poly(strtolower($bib['title']));
+  $bib['cover_code'] = $lc->string_poly($bib['cover_img']);
 
   // Timestamps
   $bib['bib_created'] = strtotime($bib['bib_created']);
@@ -229,6 +228,8 @@ function prep_bib(&$bib) {
 
   // Null check
   $bib['author_null'] = (empty($bib['author']) ? 1 : 0);
+
+  unset($lc);
 }
 
 function write_sphinx_doc_xml($config, $bib, $process_id) {

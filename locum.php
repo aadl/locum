@@ -169,11 +169,7 @@ class locum {
    * @return int a CRC32 polynomial of the string
    */
   public function string_poly($str) {
-    if (crc32($str) < 0) {
-      return crc32($str) + 4294967296;
-    } else {
-      return crc32($str);
-    }
+    return sprintf('%u', crc32($str));
   }
 
 }
