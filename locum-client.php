@@ -278,7 +278,7 @@ class locum_client extends locum {
     }
 
     // Paging/browsing through the result set.
-    $cl->SetLimits((int) $offset, (int) $limit);
+    $cl->SetLimits((int) $offset, (int) $limit, (int) $offset + $limit);
 
     // And finally.... we search.
     $cl->AddQuery($term, $idx);
@@ -318,7 +318,7 @@ class locum_client extends locum {
     $results = $cl->RunQueries();
 
     // Include descriptors
-    $final_result_set['num_hits'] = $results[0]['total'];
+    $final_result_set['num_hits'] = $results[0]['total_found'];
     if ($results[0]['total'] <= $this->locum_config['api_config']['suggestion_threshold'] || $forcedchange == 'yes') {
       if ($this->locum_config['api_config']['use_yahoo_suggest'] == TRUE) {
         $final_result_set['suggestion'] = $this->yahoo_suggest($term_prestrip);
