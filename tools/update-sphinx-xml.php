@@ -194,14 +194,21 @@ function prep_bib(&$bib) {
   unset($bib_status);
 
   // Series
-  $series_arr = unserialize($bib['series']);
-  if (!is_array($series_arr)) {
-    $series_arr = array($bib['series']);
+  if (!empty($bib['series'])) {
+    $r = new Predis_Client(array('host' => 'multivac'));
+    $series_arr = unserialize($bib['series']);
+    if (!is_array($series_arr)) {
+      $series_arr = array($bib['series']);
+    }
+    foreach ($series_arr as &$series) {
+      // Convert to 32 bit hash and store lookup
+      $series_string = $series;
+      $series = $lc->string_poly($series);
+      $r->set('poly_string:' . $series, $series_string);
+    }
+    $bib['series_attr'] = implode(',', $series_arr);
+    unset($r);
   }
-  foreach ($series_arr as &$series) {
-    $series = $lc->string_poly($series);
-  }
-  $bib['series_attr'] = implode(',', $series_arr);
 
   // Copy fields
   $bib['publisher'] = $bib['pub_info'];

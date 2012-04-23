@@ -268,18 +268,15 @@ class locum_client extends locum {
     }
 
     $cl->SetRankingMode(SPH_RANK_SPH04);
-/*
-    $cl->SetLimits(0, 5000, 5000);
-    $sph_res_all = $cl->Query($term, $idx); // Grab all the data for the facetizer
 
+    $proximity_check = $cl->Query($term, $idx); // Quick check on number of results
     // If original match didn't return any results, try a proximity search
-    if(empty($sph_res_all['matches']) && $bool == FALSE && $term != "*" && $type != "tags") {
+    if (empty($proximity_check['matches']) && $bool == FALSE && $term != "*" && $type != "tags") {
       $term = '"' . $term . '"/1';
-      $cl->SetMatchMode(SPH_MATCH_EXTENDED2);
-      $sph_res_all = $cl->Query($term, $idx);
+      $cl->SetMatchMode(SPH_MATCH_EXTENDED);
       $forcedchange = 'yes';
     }
-*/
+
     // Paging/browsing through the result set.
     $cl->SetLimits((int) $offset, (int) $limit);
 
@@ -519,9 +516,13 @@ class locum_client extends locum {
     // Series
     if (is_array($results[6]['matches'])) {
       foreach ($results[7]['matches'] as $match) {
-        $series = $match['attrs']['@groupby'];
-        $count = $match['attrs']['@count'];
-        $facets['series'][$series] = $count;
+        if ($series = $match['attrs']['@groupby']) {
+          if ($series_name = $this->redis->get('poly_string:' . $series)) {
+            $series = $series_name;
+          }
+          $count = $match['attrs']['@count'];
+          $facets['series'][$series] = $count;
+        }
       }
     }
 
