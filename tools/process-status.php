@@ -6,9 +6,13 @@ $locum_lib_dir = '/usr/local/lib/locum';
 require_once($locum_lib_dir . '/locum-client.php');
 $locum = new locum_client;
 
+// Identify queue offset to work from
+$q_offset = (int) ($argv[1] ? $argv[1] * 10 : 0);
+echo "Starting availcache worker with queue offset $q_offset\n";
+
 while (1) {
-  $bnum = $locum->redis->zrange('availcache:timestamps', 10, 10, 'WITHSCORES');
-  
+  $bnum = $locum->redis->zrange('availcache:timestamps', $q_offset, $q_offset, 'WITHSCORES');
+
   $now = time();
   $cache_age = $now - $bnum[1];
   $cache_time = sprintf( "%02.2d:%02.2d", floor( $cache_age / 60 ), $cache_age % 60 );
