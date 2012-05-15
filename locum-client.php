@@ -530,6 +530,48 @@ class locum_client extends locum {
   }
 
   /**
+   * Rebuild the availcache:timestamps queue for processing.
+   * Make sure every bib record has an entry in the queue.
+   */
+  public function rebuild_status_timestamps($skip = 0) {
+    $couch = new couchClient($this->couchserver, $this->couchdatabase);
+    try {
+      $batch_limit = 1000;
+      $total_rows = 9999999; // first batch will give us the total rows
+      $default_timestamp = time() - (60 * 60 * 24); // default time is 24 hours ago, should move to top of queue
+      $batch_count = 0;
+      $added_count = 0;
+
+      while ($skip < $total_rows) {
+        $bibs = $couch->limit($batch_limit)->skip($skip)->getView('bib', 'lastupdate');
+
+        // Check for total_rows
+        if ($bibs->total_rows != $total_rows) {
+          $total_rows = $bibs->total_rows;
+        }
+
+        // Update timestamps
+        foreach ($bibs->rows as $bib) {
+          $current = $this->redis->zscore('availcache:timestamps', $bib->id);
+          if (empty($current)) {
+            $this->redis->zadd('availcache:timestamps', $default_timestamp, $bib->id);
+            $added_count++;
+          }
+        }
+
+        // Check next batch
+        $batch_count++;
+        $skip = $batch_count * $batch_limit;
+      }
+
+      return $added_count;
+    }
+    catch ( Exception $e ) {
+      return FALSE;
+    }
+  }
+
+  /**
    * Returns an array of item status info (availability, location, status, etc).
    *
    * @param string $bnum Bib number
