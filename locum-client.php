@@ -584,10 +584,11 @@ class locum_client extends locum {
     }
 
     $result = array();
+    $current_json = $this->redis->get('availcache:' . $bnum);
 
     if ($cache_only) {
       // use the cache table, regardless of timestamp
-      if ($available = $this->redis->get('availcache:' . $bnum)) {
+      if ($current_json) {
         $cached = TRUE;
       }
     }
@@ -595,13 +596,12 @@ class locum_client extends locum {
       // check the cache table
       $cutoff_timestamp = time() - (60 * $this->locum_config['avail_cache']['cache_cutoff']);
       if ($this->redis->zscore('availcache:timestamps', $bnum) > $cutoff_timestamp) {
-        $available = $this->redis->get('availcache:' . $bnum);
         $cached = TRUE;
       }
     }
 
     if ($cached) {
-      $result = json_decode($available, TRUE); // return as array
+      $result = json_decode($current_json, TRUE); // return as array
     }
     else {
       // Scrape and store new availability data
@@ -660,39 +660,39 @@ class locum_client extends locum {
         $result['items'] = $status['items'];
 
         // Cache the result
-        $avail_ser = json_encode($result);
-        try {
-          $this->redis->set('availcache:' . $bnum, $avail_ser);
-          $this->redis->zadd('availcache:timestamps', time(), $bnum);
-        } catch (Exception $e) {
+        $this->redis->zadd('availcache:timestamps', time(), $bnum);
+        $available_json = json_encode($result);
 
-        }
+        if ($available_json != $current_json) {
+          // Only update the cache if the scraped value is different than the current value
+          $this->redis->set('availcache:' . $bnum, $available_json);
 
-        // Update Location Attributes in Sphinx
-        $branches = array();
-        foreach($result['branches'] as $branch => $details) {
-          if ($details['avail']) {
-            $branches[] = crc32($branch); // UpdateAttributes automatically converts to unsigned
+          // Update Location Attributes in Sphinx
+          $branches = array();
+          foreach($result['branches'] as $branch => $details) {
+            if ($details['avail']) {
+              $branches[] = crc32($branch); // UpdateAttributes automatically converts to unsigned
+            }
           }
+          if (count($branches)) {
+            $branches[] = crc32('any'); // UpdateAttributes automatically converts to unsigned
+          }
+
+          require_once($this->locum_config['sphinx_config']['api_path'] . '/sphinxapi.php');
+          $cl = new SphinxClient();
+          $cl->SetServer($this->locum_config['sphinx_config']['server_addr'], (int) $this->locum_config['sphinx_config']['server_port']);
+
+          // Specify indexes to update (abstract into config?)
+          $indexes = 'bib_items_keyword ' .
+                     'bib_items_author ' .
+                     'bib_items_title ' .
+                     'bib_items_subject ' .
+                     'bib_items_callnum ' .
+                     'bib_items_tags ' .
+                     'bib_items_reviews';
+
+          $cl->UpdateAttributes($indexes, array('branches'), array($bnum => array($branches)), TRUE);
         }
-        if (count($branches)) {
-          $branches[] = crc32('any'); // UpdateAttributes automatically converts to unsigned
-        }
-
-        require_once($this->locum_config['sphinx_config']['api_path'] . '/sphinxapi.php');
-        $cl = new SphinxClient();
-        $cl->SetServer($this->locum_config['sphinx_config']['server_addr'], (int) $this->locum_config['sphinx_config']['server_port']);
-
-        // Specify indexes to update (abstract into config?)
-        $indexes = 'bib_items_keyword ' .
-                   'bib_items_author ' .
-                   'bib_items_title ' .
-                   'bib_items_subject ' .
-                   'bib_items_callnum ' .
-                   'bib_items_tags ' .
-                   'bib_items_reviews';
-
-        $cl->UpdateAttributes($indexes, array('branches'), array($bnum => array($branches)), TRUE);
       }
     }
 
