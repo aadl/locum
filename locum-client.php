@@ -514,7 +514,7 @@ class locum_client extends locum {
     }
 
     // Series
-    if (is_array($results[6]['matches'])) {
+    if (is_array($results[7]['matches'])) {
       foreach ($results[7]['matches'] as $match) {
         if ($series = $match['attrs']['@groupby']) {
           if ($series_name = $this->redis->get('poly_string:' . $series)) {
