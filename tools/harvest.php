@@ -2,8 +2,8 @@
 <?php
 
 // You'll need to change these:
-$first_record = 1380000;
-$last_record = 1399000;
+$first_record = 1000000;
+$last_record = 1420000;
 $large_record_split = 50;
 
 // Init scripts, library locations, and binaries
@@ -30,10 +30,10 @@ if (($last_record - $first_record) > 1000) {
     $begin_at_bib = $begin_at_bib + $split_amount + 1;
   }
   foreach ($split_bib_arr as $split_bib) {
-    $locum->harvest_bibs($split_bib['first'], $split_bib['last']);
+    $locum->harvest_bibs($split_bib['first'], $split_bib['last'], TRUE, FALSE);
   }
 } else {
-  $locum->harvest_bibs($first_record, $last_record);
+  $locum->harvest_bibs($first_record, $last_record, TRUE, FALSE);
 }
 
 $locum->rebuild_holds_cache();

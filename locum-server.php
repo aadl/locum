@@ -108,7 +108,7 @@ class locum_server extends locum {
           exit(1);
         }
       }
-      if(TRUE) 
+      if($doc->protected != 1) 
       {
         $bib = $this->locum_cntl->scrape_bib($i, $this->locum_config['api_config']['skip_covers']);
         if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {

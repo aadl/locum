@@ -4,8 +4,8 @@
 // You may want/need to change this
 ini_set('memory_limit', '400M');
 
-$first_record = 1000000;
-$last_record = 1392000;
+$first_record = 1400000;
+$last_record = 1420000;
 $large_record_split = 50;
 
 // Init scripts, library locations, and binaries
@@ -28,5 +28,5 @@ $locum = new locum_server;
 //$locum->index();
 
 // This can all be done in situ
-$locum->verify_status();
-//$locum->verify_syndetics();
+//$locum->verify_status();
+$locum->verify_syndetics();
