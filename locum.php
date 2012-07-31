@@ -43,7 +43,9 @@ class locum {
     require_once('vendor/phponcouch/lib/couch.php');
     require_once('vendor/phponcouch/lib/couchClient.php');
     require_once('vendor/phponcouch/lib/couchDocument.php');
-    require_once('vendor/redisent/redisent.php');
+    if (!class_exists('Redisent')) {
+      require_once('vendor/redisent/redisent.php');
+    }
     require($this->locum_config['locum_config']['dsn_file']);
     $this->dsn = $dsn;
     $this->mysqli_host = $mysqli_host;
