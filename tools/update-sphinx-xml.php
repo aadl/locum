@@ -5,7 +5,7 @@ $main_time_start = microtime(true);
 require_once('../locum-client.php');
 $config = parse_ini_file('../config/indexer-xml-config.ini', TRUE);
 $process_limit = 1000; // records to process in each batch
-$process_maximum = 3; // number of processes to spawn
+$process_maximum = 10; // number of processes to spawn
 $queue = 'queue:couch-sphinx-xml';
 $script_name = $_SERVER['SCRIPT_NAME'];
 $log_file = 'sphinx-xml.log';
@@ -41,6 +41,7 @@ while ($process_count < $process_maximum) {
       // Loop through offsets in processing queue
       while (($offset = $l->redis->lpop($queue)) !== NULL) {
         $child_time_start = microtime(true);
+        $log_msg = '';
         $bibs = array();
         $insurge_keys = array();
         $holds_keys = array();
@@ -48,40 +49,60 @@ while ($process_count < $process_maximum) {
         // Grab bibs from couch
         $couch_bibs = $couch->limit($process_limit)->skip($offset)->include_docs(TRUE)->getAllDocs();
         foreach ($couch_bibs->rows as $couch_bib) {
-          $bnum = $couch_bib->id;
-          $bibs[$bnum] = (array) $couch_bib->doc;
-          $insurge_keys[] = $bnum;
-          if (is_numeric($bnum)) {
+          if ($bnum = $couch_bib->doc->bnum) {
+            // ILS record
+            $bibs[$bnum] = (array) $couch_bib->doc;
+            $insurge_keys[] = $bnum;
             $holds_keys[] = $bnum;
+          }
+          else if ($couch_bib->doc->sphinxid) {
+            // Couch only record
+            $bnum = $couch_bib->id;
+            $bibs[$bnum] = (array) $couch_bib->doc;
+            $insurge_keys[] = $bnum;
           }
         }
 
         // Build list of bnums for joining to mysql tables
-        $insurge_keys = '"' . implode('", "', $insurge_keys) . '"';
-        $holds_keys = implode(',', $holds_keys);
         $mysqli = new mysqli($l->mysqli_host, $l->mysqli_username, $l->mysqli_passwd, $l->mysqli_dbname);
         
         // Grab insurge index for bibs
-        $sql = 'SELECT * FROM insurge_index ' .
-               'WHERE bnum IN (' . $insurge_keys . ')';
-        $result = $mysqli->query($sql);
-        while ($insurge_index = $result->fetch_assoc()) {
-          $bnum = $insurge_index['bnum'];
-          $bibs[$bnum] = array_merge($bibs[$bnum], $insurge_index);
+        if (count($insurge_keys)) {
+          $insurge_keys = '"' . implode('", "', $insurge_keys) . '"';
+          $sql = 'SELECT * FROM insurge_index ' .
+                 'WHERE bnum IN (' . $insurge_keys . ')';
+          if ($result = $mysqli->query($sql)) {
+            while ($insurge_index = $result->fetch_assoc()) {
+              $bnum = $insurge_index['bnum'];
+              $bibs[$bnum] = array_merge($bibs[$bnum], $insurge_index);
+            }
+            $result->free();
+          }
+          else {
+            // Query Error, log and move on
+            $log_msg .= sprintf("INSURGE QUERY ERROR:\n\t%s\n\tQUERY: %s\n", $mysqli->error, $sql);
+          }
+          unset($result);
         }
-        $result->free();
-        unset($result);
 
         // Grab holds count for bibs
-        $sql = 'SELECT * FROM locum_holds_count ' .
-               'WHERE bnum IN (' . $holds_keys . ')';
-        $result = $mysqli->query($sql);
-        while ($holds_count = $result->fetch_assoc()) {
-          $bnum = $holds_count['bnum'];
-          $bibs[$bnum] = array_merge($bibs[$bnum], $holds_count);
+        if (count($holds_keys)) {
+          $holds_keys = implode(',', $holds_keys);
+          $sql = 'SELECT * FROM locum_holds_count ' .
+                 'WHERE bnum IN (' . $holds_keys . ')';
+          if ($result = $mysqli->query($sql)) {
+            while ($holds_count = $result->fetch_assoc()) {
+              $bnum = $holds_count['bnum'];
+              $bibs[$bnum] = array_merge($bibs[$bnum], $holds_count);
+            }
+            $result->free();
+          }
+          else {
+            // Query Error, log and move on
+            $log_msg .= sprintf("HOLDS QUERY ERROR:\n\t%s\n\tQUERY: %s\n", $mysqli->error, $sql);
+          }
+          unset($result);
         }
-        $result->free();
-        unset($result);
 
         // Kill the mysqli connection
         $mysqli->kill($mysqli->thread_id);
@@ -107,7 +128,7 @@ while ($process_count < $process_maximum) {
         $prep_total = number_format($prep_total, 3);
         $write_total = number_format($write_total, 3);
         $offset = str_pad($offset, 6, ' ', STR_PAD_LEFT);
-        $log_msg = "$current_time lim:$process_limit offset:$offset time:$child_time_elapsed sec";
+        $log_msg .= "$current_time lim:$process_limit offset:$offset time:$child_time_elapsed sec";
         $log_msg .= " (bibs: $bibs_time prep: $prep_total write: $write_total) mem: $mem_usage\n";
         $prep_total = $write_total = 0;
         file_put_contents($log_file, $log_msg, FILE_APPEND | LOCK_EX);
@@ -226,6 +247,22 @@ function prep_bib(&$bib) {
   // Null check
   $bib['author_null'] = (empty($bib['author']) ? 1 : 0);
 
+  // Non numeric ID check
+  if ($bib['sphinxid']) {
+    $bib['bnum'] = $bib['sphinxid'];
+  }
+
+  // magnatune field names
+  if ($bib['magnatune_id']) {
+    $bib['author'] = $bib['artist'];
+    $bib['series'] = 'magnatune';
+    $bib['callnum'] = 'magnatune';
+    $bib['mat_code'] = 'z';
+    $bib['loc_code'] = 'online';
+    $bib['bib_lastupdate'] = $bib['bib_created'];
+    $bib['active'] = '1';
+  }
+  
   unset($lc);
 }
 
