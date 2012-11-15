@@ -278,7 +278,11 @@ class locum_client extends locum {
     }
 
     // Paging/browsing through the result set.
-    $cl->SetLimits((int) $offset, (int) $limit, (int) $offset + $limit);
+    $sort_limit = 2000;
+    if(($offset + $limit) > $sort_limit){
+      $sort_limit = $offset + $limit;
+    }
+    $cl->SetLimits((int) $offset, (int) $limit, (int) $sort_limit);
 
     // And finally.... we search.
     $cl->AddQuery($term, $idx);
