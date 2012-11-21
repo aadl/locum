@@ -18,6 +18,8 @@
   <sphinx:field name="available"/>
   <sphinx:field name="tag_idx"/>
   <sphinx:field name="review_idx"/>
+  <sphinx:field name="genres"/>
+  <sphinx:field name="tracks"/>
   <sphinx:attr name="title_ord" type="str2ordinal" bits="32" default="0"/>
   <sphinx:attr name="author_ord" type="str2ordinal" bits="32" default="0"/>
   <sphinx:attr name="cover_code" type="int" bits="32" default="0"/>

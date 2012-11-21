@@ -21,6 +21,7 @@ exec('rm ../sphinx/xml/*');
 // Count records to process
 $all_bibs = $couch->limit(0)->getAllDocs();
 $record_total = $all_bibs->total_rows;
+echo "Processing $record_total records in groups of $process_limit\n";
 
 // Build the processing queue offsets
 $l->redis->del($queue);
@@ -45,7 +46,7 @@ while ($process_count < $process_maximum) {
         $bibs = array();
         $insurge_keys = array();
         $holds_keys = array();
-        
+
         // Grab bibs from couch
         $couch_bibs = $couch->limit($process_limit)->skip($offset)->include_docs(TRUE)->getAllDocs();
         foreach ($couch_bibs->rows as $couch_bib) {
@@ -65,7 +66,7 @@ while ($process_count < $process_maximum) {
 
         // Build list of bnums for joining to mysql tables
         $mysqli = new mysqli($l->mysqli_host, $l->mysqli_username, $l->mysqli_passwd, $l->mysqli_dbname);
-        
+
         // Grab insurge index for bibs
         if (count($insurge_keys)) {
           $insurge_keys = '"' . implode('", "', $insurge_keys) . '"';
@@ -262,7 +263,7 @@ function prep_bib(&$bib) {
     $bib['bib_lastupdate'] = $bib['bib_created'];
     $bib['active'] = '1';
   }
-  
+
   unset($lc);
 }
 
@@ -280,10 +281,10 @@ function write_sphinx_doc_xml($config, $bib, $process_id) {
     foreach ($index['fields'] as $field) {
       if (is_array($bib[$field]) or is_object($bib[$field])) {
         // Concatenate into a single string for indexing
-        $bib[$field] = implode(' ', (array) $bib[$field]);
+        $bib[$field] = flatten($bib[$field]);
       }
       $tmp = $dom->createElement($field);
-      $tmp->appendChild($dom->createTextNode($bib[$field]));
+      $tmp->appendChild($dom->createTextNode(trim($bib[$field])));
       $doc->appendChild($tmp);
       unset($tmp);
     }
@@ -309,5 +310,17 @@ function build_master_xml_file($file_name, $remove_pieces = FALSE) {
   if ($remove_pieces) {
     exec('rm ../sphinx/xml/' . $file_name . '_*.xml');
   }
+}
+
+/**
+ * Flatten multi-dimensional values with a single string of space separated values
+ */
+function flatten($a) {
+  $return = array();
+  $it = new RecursiveIteratorIterator(new RecursiveArrayIterator($a));
+  foreach ($it as $v) {
+    $return[] = $v;
+  }
+  return implode(' ', $return);
 }
 ?>
