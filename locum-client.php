@@ -68,6 +68,8 @@ class locum_client extends locum {
       $picturebook = array('picturebook','picture book');
       $picbk_search = '(@callnum ^E)';
       $term = str_ireplace($picturebook,$picbk_search,$term);
+      $fiction_search = '(@subjects fiction | @callnum mystery | @callnum fantasy | @callnum fiction | @callnum western | @callnum romance)';
+      $term = str_ireplace('fiction',$fiction_search,$term);
       // Is it a boolean search?
       if (preg_match("/ \| /i", $term) || preg_match("/ \-/i", $term) || preg_match("/ \!/i", $term)) {
         $cl->SetMatchMode(SPH_MATCH_BOOLEAN);
