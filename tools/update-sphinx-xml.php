@@ -5,14 +5,15 @@ $main_time_start = microtime(true);
 require_once('../locum-client.php');
 $config = parse_ini_file('../config/indexer-xml-config.ini', TRUE);
 $process_limit = 1000; // records to process in each batch
-$process_maximum = 10; // number of processes to spawn
+$process_maximum = 1; // number of processes to spawn
 $queue = 'queue:couch-sphinx-xml';
 $script_name = $_SERVER['SCRIPT_NAME'];
 $log_file = 'sphinx-xml.log';
 $pids = array();
 
 $l = new locum;
-$couch = new couchClient($l->couchserver, $l->couchdatabase);
+$couch = new couchClient($l->couchserver, $l->couchdatabase,
+                         array('curl' => array(CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4)));
 
 // Remove current log file and xml docs
 unlink($log_file);
@@ -176,6 +177,17 @@ function prep_bib(&$bib) {
   $bib_status = $lc->get_item_status($bib['bnum'], FALSE, TRUE);
   $formats = $lc->locum_config['formats'];
 
+  // magnatune field names
+  if ($bib['magnatune_id']) {
+    $bib['author'] = $bib['artist'];
+    $bib['series'] = 'magnatune';
+    $bib['callnum'] = 'magnatune';
+    $bib['mat_code'] = 'z';
+    $bib['loc_code'] = 'online';
+    $bib['bib_lastupdate'] = $bib['bib_created'];
+    $bib['active'] = '1';
+  }
+
   if (count($bib_status['ages'])) {
     $ages = array();
     foreach($bib_status['ages'] as $age => $details) {
@@ -251,17 +263,6 @@ function prep_bib(&$bib) {
   // Non numeric ID check
   if ($bib['sphinxid']) {
     $bib['bnum'] = $bib['sphinxid'];
-  }
-
-  // magnatune field names
-  if ($bib['magnatune_id']) {
-    $bib['author'] = $bib['artist'];
-    $bib['series'] = 'magnatune';
-    $bib['callnum'] = 'magnatune';
-    $bib['mat_code'] = 'z';
-    $bib['loc_code'] = 'online';
-    $bib['bib_lastupdate'] = $bib['bib_created'];
-    $bib['active'] = '1';
   }
 
   unset($lc);
