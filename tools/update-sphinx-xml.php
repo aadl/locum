@@ -2,93 +2,109 @@
 ////////////////////////////////////////////////////////////////////////////////
 error_reporting(E_ERROR);
 $main_time_start = microtime(true);
-require_once('../vendor/predis/lib/Predis.php');
 require_once('../locum-client.php');
 $config = parse_ini_file('../config/indexer-xml-config.ini', TRUE);
 $process_limit = 1000; // records to process in each batch
-$process_maximum = 2; // number of processes to spawn
-$queue = 'queue:sphinx-xml';
+$process_maximum = 1; // number of processes to spawn
+$queue = 'queue:couch-sphinx-xml';
 $script_name = $_SERVER['SCRIPT_NAME'];
 $log_file = 'sphinx-xml.log';
 $pids = array();
 
-$r = new Predis_Client(array('host' => 'multivac'));
 $l = new locum;
-$host = $l->mysqli_host;
-$username = $l->mysqli_username;
-$passwd = $l->mysqli_passwd;
-$dbname = $l->mysqli_dbname;
-unset($l);
+$couch = new couchClient($l->couchserver, $l->couchdatabase,
+                         array('curl' => array(CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4)));
 
 // Remove current log file and xml docs
 unlink($log_file);
 exec('rm ../sphinx/xml/*');
 
 // Count records to process
-$mysqli = new mysqli($host, $username, $passwd, $dbname);
-$result = $mysqli->query("SELECT COUNT(bnum) AS count FROM locum_bib_items");
-$row = $result->fetch_object();
-$record_total = $row->count;
-$mysqli->kill($mysqli->thread_id);
-$mysqli->close();
-unset($mysqli);
+$all_bibs = $couch->limit(0)->getAllDocs();
+$record_total = $all_bibs->total_rows;
+echo "Processing $record_total records in groups of $process_limit\n";
 
 // Build the processing queue offsets
-$r->del($queue);
+$l->redis->del($queue);
 $offsets = array();
 for ($process_offset = 0; $process_offset < $record_total; $process_offset += $process_limit) {
   $offsets[] = $process_offset;
 }
 shuffle($offsets); // randomize order in which offsets are processed
 foreach ($offsets as $offset) {
-  $r->rpush($queue, $offset);
+  $l->redis->rpush($queue, $offset);
 }
 
 $process_count = 0;
 while ($process_count < $process_maximum) {
-  if ($r->llen($queue)) {
+  if ($l->redis->llen($queue)) {
     if ( ($pids[] = pcntl_fork()) === 0) {
       // CHILD PROCESS START ///////////////////////////////////////////////////
       // Loop through offsets in processing queue
-      while (($offset = $r->lpop($queue)) !== NULL) {
+      while (($offset = $l->redis->lpop($queue)) !== NULL) {
         $child_time_start = microtime(true);
-        $mysqli = new mysqli($host, $username, $passwd, $dbname);
-
-        // Grab bibs from locum_bib_items
-        $sql = 'SELECT * FROM locum_bib_items ' .
-               'ORDER BY bnum ASC LIMIT ' . $process_limit . ' OFFSET ' . $offset;
-        $result = $mysqli->query($sql);
+        $log_msg = '';
         $bibs = array();
-        while ($bib = $result->fetch_assoc()) {
-          $bibs[$bib['bnum']] = $bib;
-        }
-        $result->free();
-        unset($result);
+        $insurge_keys = array();
+        $holds_keys = array();
 
-        // Build list of bnums for joining
-        $bnums = implode(',', array_keys($bibs));
-
-        // Grab holds count for bibs
-        $sql = 'SELECT * FROM locum_holds_count ' .
-               'WHERE bnum IN (' . $bnums . ')';
-        $result = $mysqli->query($sql);
-        while ($holds_count = $result->fetch_assoc()) {
-          $bnum = $holds_count['bnum'];
-          $bibs[$bnum] = array_merge($bibs[$bnum], $holds_count);
+        // Grab bibs from couch
+        $couch_bibs = $couch->limit($process_limit)->skip($offset)->include_docs(TRUE)->getAllDocs();
+        foreach ($couch_bibs->rows as $couch_bib) {
+          if ($bnum = $couch_bib->doc->bnum) {
+            // ILS record
+            $bibs[$bnum] = (array) $couch_bib->doc;
+            $insurge_keys[] = $bnum;
+            $holds_keys[] = $bnum;
+          }
+          else if ($couch_bib->doc->sphinxid) {
+            // Couch only record
+            $bnum = $couch_bib->id;
+            $bibs[$bnum] = (array) $couch_bib->doc;
+            $insurge_keys[] = $bnum;
+          }
         }
-        $result->free();
-        unset($result);
+
+        // Build list of bnums for joining to mysql tables
+        $mysqli = new mysqli($l->mysqli_host, $l->mysqli_username, $l->mysqli_passwd, $l->mysqli_dbname);
 
         // Grab insurge index for bibs
-        $sql = 'SELECT * FROM insurge_index ' .
-               'WHERE bnum IN (' . $bnums . ')';
-        $result = $mysqli->query($sql);
-        while ($insurge_index = $result->fetch_assoc()) {
-          $bnum = $insurge_index['bnum'];
-          $bibs[$bnum] = array_merge($bibs[$bnum], $insurge_index);
+        if (count($insurge_keys)) {
+          $insurge_keys = '"' . implode('", "', $insurge_keys) . '"';
+          $sql = 'SELECT * FROM insurge_index ' .
+                 'WHERE bnum IN (' . $insurge_keys . ')';
+          if ($result = $mysqli->query($sql)) {
+            while ($insurge_index = $result->fetch_assoc()) {
+              $bnum = $insurge_index['bnum'];
+              $bibs[$bnum] = array_merge($bibs[$bnum], $insurge_index);
+            }
+            $result->free();
+          }
+          else {
+            // Query Error, log and move on
+            $log_msg .= sprintf("INSURGE QUERY ERROR:\n\t%s\n\tQUERY: %s\n", $mysqli->error, $sql);
+          }
+          unset($result);
         }
-        $result->free();
-        unset($result);
+
+        // Grab holds count for bibs
+        if (count($holds_keys)) {
+          $holds_keys = implode(',', $holds_keys);
+          $sql = 'SELECT * FROM locum_holds_count ' .
+                 'WHERE bnum IN (' . $holds_keys . ')';
+          if ($result = $mysqli->query($sql)) {
+            while ($holds_count = $result->fetch_assoc()) {
+              $bnum = $holds_count['bnum'];
+              $bibs[$bnum] = array_merge($bibs[$bnum], $holds_count);
+            }
+            $result->free();
+          }
+          else {
+            // Query Error, log and move on
+            $log_msg .= sprintf("HOLDS QUERY ERROR:\n\t%s\n\tQUERY: %s\n", $mysqli->error, $sql);
+          }
+          unset($result);
+        }
 
         // Kill the mysqli connection
         $mysqli->kill($mysqli->thread_id);
@@ -114,7 +130,7 @@ while ($process_count < $process_maximum) {
         $prep_total = number_format($prep_total, 3);
         $write_total = number_format($write_total, 3);
         $offset = str_pad($offset, 6, ' ', STR_PAD_LEFT);
-        $log_msg = "$current_time lim:$process_limit offset:$offset time:$child_time_elapsed sec";
+        $log_msg .= "$current_time lim:$process_limit offset:$offset time:$child_time_elapsed sec";
         $log_msg .= " (bibs: $bibs_time prep: $prep_total write: $write_total) mem: $mem_usage\n";
         $prep_total = $write_total = 0;
         file_put_contents($log_file, $log_msg, FILE_APPEND | LOCK_EX);
@@ -161,6 +177,17 @@ function prep_bib(&$bib) {
   $bib_status = $lc->get_item_status($bib['bnum'], FALSE, TRUE);
   $formats = $lc->locum_config['formats'];
 
+  // magnatune field names
+  if ($bib['magnatune_id']) {
+    $bib['author'] = $bib['artist'];
+    $bib['series'] = 'magnatune';
+    $bib['callnum'] = 'magnatune';
+    $bib['mat_code'] = 'z';
+    $bib['loc_code'] = 'online';
+    $bib['bib_lastupdate'] = $bib['bib_created'];
+    $bib['active'] = '1';
+  }
+
   if (count($bib_status['ages'])) {
     $ages = array();
     foreach($bib_status['ages'] as $age => $details) {
@@ -183,31 +210,28 @@ function prep_bib(&$bib) {
     unset($branches);
   }
   $callnum = $bib['callnum'];
-  foreach($bib_status['items'] as $item){
-    if(preg_match('/Zoom/',$item['callnum'])) {
-      $bib['callnum'] = $bib['callnum'] . " " . trim($item['callnum']);
-    }
-    if(strpos($item['location'],'StaffPicks')){
-      $bib['callnum'] = $bib['callnum'] . " StaffPick";
+  if (count($bib_status['items'])) {
+    foreach ($bib_status['items'] as $item) {
+      if (preg_match('/Zoom/',$item['callnum'])) {
+        $bib['callnum'] = $bib['callnum'] . " " . trim($item['callnum']);
+      }
+      if (strpos($item['location'],'StaffPicks')) {
+        $bib['callnum'] = $bib['callnum'] . " StaffPick";
+      }
     }
   }
   unset($bib_status);
 
   // Series
-  if (!empty($bib['series'])) {
-    $r = new Predis_Client(array('host' => 'multivac'));
-    $series_arr = unserialize($bib['series']);
-    if (!is_array($series_arr)) {
-      $series_arr = array($bib['series']);
-    }
+  if (is_array($bib['series']) && count($bib['series'])) {
+    $series_arr = $bib['series'];
     foreach ($series_arr as &$series) {
       // Convert to 32 bit hash and store lookup
       $series_string = $series;
       $series = $lc->string_poly($series);
-      $r->set('poly_string:' . $series, $series_string);
+      $lc->redis->set('poly_string:' . $series, $series_string);
     }
     $bib['series_attr'] = implode(',', $series_arr);
-    unset($r);
   }
 
   // Copy fields
@@ -236,6 +260,11 @@ function prep_bib(&$bib) {
   // Null check
   $bib['author_null'] = (empty($bib['author']) ? 1 : 0);
 
+  // Non numeric ID check
+  if ($bib['sphinxid']) {
+    $bib['bnum'] = $bib['sphinxid'];
+  }
+
   unset($lc);
 }
 
@@ -244,15 +273,19 @@ function write_sphinx_doc_xml($config, $bib, $process_id) {
   $dom->encoding = "utf-8";
   $dom->formatOutput = true;
 
-  foreach($config as $index) {
+  foreach ($config as $index) {
     $file_path = '../sphinx/xml/' . $index['file_path'] . '_' . $process_id . '.xml';
     // Each index has its own XML file and fields
     $doc = $dom->createElement('sphinx:document');
     $doc->setAttribute('id', $bib['bnum']);
 
     foreach ($index['fields'] as $field) {
+      if (is_array($bib[$field]) or is_object($bib[$field])) {
+        // Concatenate into a single string for indexing
+        $bib[$field] = flatten($bib[$field]);
+      }
       $tmp = $dom->createElement($field);
-      $tmp->appendChild($dom->createTextNode($bib[$field]));
+      $tmp->appendChild($dom->createTextNode(trim($bib[$field])));
       $doc->appendChild($tmp);
       unset($tmp);
     }
@@ -278,5 +311,17 @@ function build_master_xml_file($file_name, $remove_pieces = FALSE) {
   if ($remove_pieces) {
     exec('rm ../sphinx/xml/' . $file_name . '_*.xml');
   }
+}
+
+/**
+ * Flatten multi-dimensional values with a single string of space separated values
+ */
+function flatten($a) {
+  $return = array();
+  $it = new RecursiveIteratorIterator(new RecursiveArrayIterator($a));
+  foreach ($it as $v) {
+    $return[] = $v;
+  }
+  return implode(' ', $return);
 }
 ?>
