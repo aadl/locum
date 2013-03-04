@@ -698,11 +698,12 @@ class locum_client extends locum {
                      'bib_items_callnum ' .
                      'bib_items_tags ' .
                      'bib_items_reviews';
+          $index_count = 7; // Match count of index names in $indexes string
 
           $update_num = $cl->UpdateAttributes($indexes, array('branches'), array($bnum => array($branches)), TRUE);
-          if (count($indexes) != $update_num) {
+          if ($update_num != $index_count) {
             $log = '[' . date("Y-m-d H:i:s") . '] record num: b' . $bnum .
-                   ', updated ' . $update_num . '/' . count($indexes) . ' indices';
+                   ', updated ' . $update_num . '/' . $index_count . ' indices';
             $this->redis->set('availcache:mva_update:last_error', $log);
             $this->redis->incr('availcache:mva_update:error_count');
           }
