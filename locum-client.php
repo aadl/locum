@@ -671,7 +671,7 @@ class locum_client extends locum {
         $this->redis->zadd('availcache:timestamps', time(), $bnum);
         $available_json = json_encode($result);
 
-        if ($available_json != $current_json) {
+        if ($available_json != $current_json || $force_refresh) {
           // Only update the cache if the scraped value is different than the current value
           $this->redis->set('availcache:' . $bnum, $available_json);
 
@@ -699,7 +699,13 @@ class locum_client extends locum {
                      'bib_items_tags ' .
                      'bib_items_reviews';
 
-          $cl->UpdateAttributes($indexes, array('branches'), array($bnum => array($branches)), TRUE);
+          $update_num = $cl->UpdateAttributes($indexes, array('branches'), array($bnum => array($branches)), TRUE);
+          if (count($indexes) != $update_num) {
+            $log = '[' . date("Y-m-d H:i:s") . '] record num: b' . $bnum .
+                   ', updated ' . $update_num . '/' . count($indexes) . ' indices';
+            $this->redis->set('availcache:mva_update:last_error', $log);
+            $this->redis->incr('availcache:mva_update:error_count');
+          }
         }
       }
     }
