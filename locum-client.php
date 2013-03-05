@@ -670,7 +670,7 @@ class locum_client extends locum {
         $this->redis->zadd('availcache:timestamps', time(), $bnum);
         $available_json = json_encode($result);
 
-        if ($available_json != $current_json || $force_refresh) {
+        if ($available_json != $current_json) {
           // Only update the cache if the scraped value is different than the current value
           $this->redis->set('availcache:' . $bnum, $available_json);
 
