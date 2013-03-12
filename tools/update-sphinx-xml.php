@@ -240,7 +240,9 @@ function prep_bib(&$bib) {
   $bib['langcode'] = $bib['lang'];
   $bib['mat_name'] = $formats[$bib['mat_code']];
   $bib['pub_decade'] = floor($bib['pub_year'] / 10) * 10;
-
+  if($bib['reading_level']->lexile){
+    $bib['lexile'] = floor($bib['reading_level']->lexile / 100) * 100;
+  }
   // CRC32s
   $bib['pub_info'] = $lc->string_poly($bib['pub_info']);
   $bib['lang'] = $lc->string_poly($bib['lang']);
