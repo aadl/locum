@@ -236,6 +236,11 @@ class locum_client extends locum {
     if ($facet_args['facet_decade']) {
       $cl->SetFilter('pub_decade', $facet_args['facet_decade']);
     }
+    
+    // Filter by lexile
+    if ($facet_args['facet_lexile']) {
+      $cl->SetFilter('lexile', $facet_args['facet_lexile']);
+    }
 
     // Filter by Series
     if (count($facet_args['facet_series'])) {
@@ -319,6 +324,10 @@ class locum_client extends locum {
     $cl->ResetGroupBy();
 
     $cl->SetGroupBy('series_attr', SPH_GROUPBY_ATTR, '@count desc');
+    $cl->AddQuery($term, $idx);
+    $cl->ResetGroupBy();
+    
+    $cl->SetGroupBy('lexile', SPH_GROUPBY_ATTR);
     $cl->AddQuery($term, $idx);
     $cl->ResetGroupBy();
 
@@ -462,7 +471,8 @@ class locum_client extends locum {
                     'avail',
                     'ages',
                     'lang',
-                    'series');
+                    'series',
+                    'lexile');
 
     // Pub Year
     if (is_array($results[1]['matches'])) {
@@ -530,6 +540,15 @@ class locum_client extends locum {
           $count = $match['attrs']['@count'];
           $facets['series'][$series] = $count;
         }
+      }
+    }
+    
+    // Lexile
+    if (is_array($results[8]['matches'])) {
+      foreach ($results[8]['matches'] as $match) {
+        $lexile = $match['attrs']['@groupby'];
+        $count = $match['attrs']['@count'];
+        $facets['lexile'][$lexile] = $count;
       }
     }
 
