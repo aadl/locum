@@ -64,12 +64,20 @@ class locum_client extends locum {
       $picturebook = array('picturebook','picture book');
       $picbk_search = '(@callnum ^E)';
       $term = str_ireplace($picturebook,$picbk_search,$term);
-      if($type == 'keyword') {
-        $nonfiction = array('nonfiction','non-fiction');
-        $nonfic_search = '@@relaxed (@callnum "0*" | @callnum "1*" | @callnum "2*" | @callnum "3*" | @callnum "4*" | @callnum "5*" | @callnum "6*" | @callnum "7*" | @callnum "8*" | @callnum "9*")';
-        $term = str_ireplace($nonfiction,$nonfic_search,$term);
-        $fiction_search = '@@relaxed (@subjects fiction | @callnum mystery | @callnum fantasy | @callnum fiction | @callnum western | @callnum romance)';
-        $term = str_ireplace('fiction',$fiction_search,$term);
+      if ($type == 'keyword') {
+        // Custom fiction and non-fiction search
+        $nonfic_search = ' (@callnum "0*" | @callnum "1*" | @callnum "2*" | @callnum "3*" | @callnum "4*" | @callnum "5*" | @callnum "6*" | @callnum "7*" | @callnum "8*" | @callnum "9*")';
+        $fiction_search = ' (@subjects fiction | @callnum mystery | @callnum fantasy | @callnum fiction | @callnum western | @callnum romance)';
+
+        if (stripos($term, 'nonfiction') !== FALSE) {
+          $term = '@@relaxed ' . str_ireplace('nonfiction', '', $term) . $nonfic_search;
+        }
+        else if (strpos($term, 'non-fiction') !== FALSE) {
+          $term = '@@relaxed ' . str_ireplace('non-fiction', '', $term) . $nonfic_search;
+        }
+        else if (strpos($term, 'fiction') !== FALSE) {
+          $term = '@@relaxed ' . str_ireplace('fiction', '', $term) . $fiction_search;
+        }
       }
       // Is it a boolean search?
       if (preg_match("/ \| /i", $term) || preg_match("/ \-/i", $term) || preg_match("/ \!/i", $term)) {
@@ -237,6 +245,11 @@ class locum_client extends locum {
       $cl->SetFilter('pub_decade', $facet_args['facet_decade']);
     }
 
+    // Filter by lexile
+    if ($facet_args['facet_lexile']) {
+      $cl->SetFilter('lexile', $facet_args['facet_lexile']);
+    }
+
     // Filter by Series
     if (count($facet_args['facet_series'])) {
       foreach ($facet_args['facet_series'] as &$facet_series) {
@@ -319,6 +332,10 @@ class locum_client extends locum {
     $cl->ResetGroupBy();
 
     $cl->SetGroupBy('series_attr', SPH_GROUPBY_ATTR, '@count desc');
+    $cl->AddQuery($term, $idx);
+    $cl->ResetGroupBy();
+
+    $cl->SetGroupBy('lexile', SPH_GROUPBY_ATTR);
     $cl->AddQuery($term, $idx);
     $cl->ResetGroupBy();
 
@@ -462,7 +479,8 @@ class locum_client extends locum {
                     'avail',
                     'ages',
                     'lang',
-                    'series');
+                    'series',
+                    'lexile');
 
     // Pub Year
     if (is_array($results[1]['matches'])) {
@@ -530,6 +548,15 @@ class locum_client extends locum {
           $count = $match['attrs']['@count'];
           $facets['series'][$series] = $count;
         }
+      }
+    }
+
+    // Lexile
+    if (is_array($results[8]['matches'])) {
+      foreach ($results[8]['matches'] as $match) {
+        $lexile = $match['attrs']['@groupby'];
+        $count = $match['attrs']['@count'];
+        $facets['lexile'][$lexile] = $count;
       }
     }
 
