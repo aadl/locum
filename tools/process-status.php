@@ -12,6 +12,22 @@ if ($argv[1] == 'rebuild') {
   $count = $locum->rebuild_status_timestamps();
   echo "Added $count records to the timestamp queue\n";
 }
+else if ($argv[1] == 'todays_bibs') {
+  // Work from the todays_bibs queue
+  echo "Starting availcache worker for today's bibs\n";
+
+  while (1) {
+    if ($bnum = $locum->redis->lpop('todays_bibs')) {
+      $now_date = date('m-d-Y G:i:s');
+      echo "[$now_date] UPDATING $bnum\n";
+      $locum->get_item_status($bnum, TRUE);
+    }
+    else {
+      // No bibs to be updated, sleep and look again
+      sleep(10);
+    }
+  }
+}
 else {
   // Identify queue offset to work from
   $q_offset = (int) ($argv[1] ? $argv[1] * 10 : 0);
