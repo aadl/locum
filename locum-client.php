@@ -67,7 +67,7 @@ class locum_client extends locum {
       if ($type == 'keyword') {
         // Custom fiction and non-fiction search
         $nonfic_search = ' (@callnum "0*" | @callnum "1*" | @callnum "2*" | @callnum "3*" | @callnum "4*" | @callnum "5*" | @callnum "6*" | @callnum "7*" | @callnum "8*" | @callnum "9*")';
-        $fiction_search = ' (@subjects fiction | @callnum mystery | @callnum fantasy | @callnum fiction | @callnum western | @callnum romance)';
+        $fiction_search = ' (@title fiction | @subjects fiction | @callnum mystery | @callnum fantasy | @callnum fiction | @callnum western | @callnum romance)';
 
         if (stripos($term, 'nonfiction') !== FALSE) {
           $term = '@@relaxed ' . str_ireplace('nonfiction', '', $term) . $nonfic_search;
@@ -675,9 +675,9 @@ class locum_client extends locum {
             $result['branches'][$item['branch']]['total']++;
 
             // Parse Callnums
-            if ($item['callnum'] !== $bib['callnum'] && strstr($bib['callnum'], $item['callnum'])) {
-              $item['callnum'] = $bib['callnum'];
-            }
+//            if ($item['callnum'] !== $bib['callnum'] && strstr($bib['callnum'], $item['callnum'])) {            
+//              $item['callnum'] = $bib['callnum'];
+//            }
             $result['callnums'][$item['callnum']]['avail'] += $item['avail'];
             $result['callnums'][$item['callnum']]['total']++;
 
