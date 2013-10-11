@@ -17,7 +17,7 @@ else if ($argv[1] == 'todays_bibs') {
   echo "Starting availcache worker for today's bibs\n";
 
   while (1) {
-    if ($bnum = $locum->redis->lpop('todays_bibs')) {
+    if ($bnum = $locum->redis->spop('todays_bibs')) {
       $now_date = date('m-d-Y G:i:s');
       echo "[$now_date] UPDATING $bnum\n";
       $locum->get_item_status($bnum, TRUE);
