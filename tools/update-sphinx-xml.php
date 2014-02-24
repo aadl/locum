@@ -212,11 +212,14 @@ function prep_bib(&$bib) {
   $callnum = $bib['callnum'];
   if (count($bib_status['items'])) {
     foreach ($bib_status['items'] as $item) {
-      if (preg_match('/Zoom/',$item['callnum'])) {
+      if (!strpos($bib['callnum'], $item['callnum'])) {
         $bib['callnum'] = $bib['callnum'] . " " . trim($item['callnum']);
       }
       if (strpos($item['location'],'StaffPicks')) {
         $bib['callnum'] = $bib['callnum'] . " StaffPick";
+      }
+      if (strpos($item['location'],'Stuff Shelf') && !strpos($bib['callnum'],'Stuff Shelf')) {
+        $bib['callnum'] = $bib['callnum'] . " Stuff Shelf";
       }
     }
   }
