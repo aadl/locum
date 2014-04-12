@@ -28,7 +28,7 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($start, $end, $quiet);
     }
-    
+
     if ($start > $end) { return 0; }
 
     $num_children = $this->locum_config['harvest_config']['max_children'];
@@ -38,7 +38,7 @@ class locum_server extends locum {
       for ($i = 0; $i < $num_children; ++$i) {
         $end = $start + ($increment - 1);
         $new_start = $end + 1;
-  
+
         $pid = pcntl_fork();
         if ($pid != -1) {
           if ($pid) {
@@ -83,7 +83,7 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($start, $end);
     }
-    
+
     $db =& MDB2::connect($this->dsn);
     $couch = new couchClient($this->couchserver,$this->couchdatabase);
     $process_report['skipped'] = 0;
@@ -108,7 +108,7 @@ class locum_server extends locum {
           exit(1);
         }
       }
-      if($doc->protected != 1) 
+      if($doc->protected != 1)
       {
         $bib = $this->locum_cntl->scrape_bib($i, $this->locum_config['api_config']['skip_covers']);
         if ($bib == FALSE || $bib == 'skip' || $bib['suppress'] == 1) {
@@ -141,7 +141,7 @@ class locum_server extends locum {
                   $bval = serialize($bval);
                 }
               }
-              
+
               $bib_values[$bkey] = $bval;
             }
           }
@@ -200,7 +200,7 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($bib_arr);
     }
-    
+
     $db = MDB2::connect($this->dsn);
     $updated = 0;
     $retired = 0;
@@ -234,12 +234,12 @@ class locum_server extends locum {
         foreach ($bib as $bkey => $bval) {
           if (in_array($bkey, $valid_vals)) { $bib_values[$bkey] = $bval; }
         }
-        
+
         $bib_values['subjects_ser'] = serialize($subj);
-      
+
         $types = array('date', 'date', 'date', 'integer', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'integer', 'text', 'text', 'integer', 'text', 'text', 'text', 'text');
-    
-        $setlist = 
+
+        $setlist =
           "bib_created = :bib_created, " .
           "bib_lastupdate = :bib_lastupdate, " .
           "bib_prevupdate = :bib_prevupdate, " .
@@ -264,13 +264,13 @@ class locum_server extends locum {
           "notes = :notes, " .
           "subjects = :subjects_ser, " .
           "modified = NOW()";
-      
+
         $sql_prep =& $db->prepare('UPDATE locum_bib_items SET ' . $setlist . ' WHERE bnum = :bnum', $types, MDB2_PREPARE_MANIP);
         $res = $sql_prep->execute($bib_values);
         $sql_prep =& $db->prepare('DELETE FROM locum_bib_items_subject WHERE bnum = ?', array('integer'));
         $sql_prep->execute(array($bnum));
         $sql_prep->free();
-      
+
 /*
         if (is_array($subj) && count($subj)) {
           foreach ($subj as $subj_heading) {
@@ -282,7 +282,7 @@ class locum_server extends locum {
           }
         }
 */
-        
+
         $this->putlog("Updated record # $bnum - $bib[title]", 2, TRUE);
         $updated++;
       }
@@ -301,7 +301,7 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}();
     }
-    
+
     $db = MDB2::connect($this->dsn);
     $sql = 'SELECT MAX(bnum) FROM locum_bib_items';
     $max_bib_result =& $db->query($sql);
@@ -312,10 +312,10 @@ class locum_server extends locum {
     $this->putlog("Harvesting bibs # $next_bib - $last_bib", 2, TRUE);
     $this->harvest_bibs($next_bib, $last_bib);
   }
-  
+
   /**
    * Flushes the holds_count table and rebuilds it.  Useful for keeping popularity information
-   * up-to-date.  It's needed in this format so that the sphinx index can be rebuilt with 
+   * up-to-date.  It's needed in this format so that the sphinx index can be rebuilt with
    * dortable popularity data.
    */
   public function rebuild_holds_cache() {
@@ -323,7 +323,7 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}();
     }
-    
+
     $db = MDB2::connect($this->dsn);
     $db->query('DELETE FROM locum_holds_count');
     $db->query('INSERT INTO locum_holds_count (bnum) SELECT locum_bib_items.bnum FROM locum_bib_items');
@@ -333,7 +333,7 @@ class locum_server extends locum {
     $sql_month = 'SELECT bnum, COUNT(bnum) AS total FROM locum_holds_placed WHERE hold_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH) GROUP BY bnum';
     $sql_year = 'SELECT bnum, COUNT(bnum) AS total FROM locum_holds_placed WHERE hold_date >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR) GROUP BY bnum';
     $sql_total = 'SELECT bnum, COUNT(bnum) AS total FROM locum_holds_placed GROUP BY bnum';
-    
+
     foreach ($counts as $count_type) {
       $dbq =& $db->query(${'sql_' . $count_type});
       $result_arr = $dbq->fetchAll(MDB2_FETCHMODE_ASSOC);
@@ -348,7 +348,7 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}();
     }
-    
+
     $db = MDB2::connect($this->dsn);
     $db->exec("DELETE FROM locum_facet_heap");
     $db->exec("INSERT INTO locum_facet_heap (bnum, series, mat_code, loc_code, lang, pub_year, pub_decade, bib_lastupdate) " .
@@ -357,7 +357,7 @@ class locum_server extends locum {
       "LEFT JOIN locum_availability on locum_bib_items.bnum = locum_availability.bnum " .
       "WHERE active = '1'");
   }
-  
+
   /**
    * Tells sphinx indexer to index
    * Supports specific indexes
@@ -371,14 +371,14 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($index, $new);
     }
-  
+
     $binpath = $this->locum_config['sphinx_config']['bin_path'];
     $server = $this->locum_config['sphinx_config']['server_addr'];
     $pubkey = $this->locum_config['sphinx_config']['pubkey_path'];
     $privkey = $this->locum_config['sphinx_config']['privkey_path'];
     $secret = $this->locum_config['sphinx_config']['key_pass'];
     $username = $this->locum_config['sphinx_config']['key_user'];
-    
+
     switch ($index) {
       case "keyword":
         $options = "bib_items_keyword";
@@ -410,12 +410,12 @@ class locum_server extends locum {
       default:
         $options = "--all";
     }
-    
+
     $command = $binpath . "/indexer " . $options;
     if(!$new) {
       $command .= " --rotate";
     }
-    
+
     if($server == 'localhost' || $server == '127.0.0.1') {
       $cmdout = shell_exec($command);
     } else {
@@ -428,22 +428,22 @@ class locum_server extends locum {
     }
     $success = "succesfully sent SIGHUP";
     $check = strpos($cmdout,$success);
-    
+
     if ($pos === FALSE) {
       return FALSE;
     }
     else {
       return TRUE;
     }
-    
+
   }
-  
+
   /************ Verification / Maintenance Functions ************/
-  
-  
+
+
   /**
    * Scans existing imported bibs for changes or weeds and makes the appropriate changes.
-   * 
+   *
    * @param boolean $quiet Run this function silently.  Default: TRUE
    */
   public function verify_bibs($quiet = TRUE) {
@@ -451,81 +451,18 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($quiet);
     }
-    
-    $limit = 1000;
-    $offset = 0;
-    
-    $this->putlog("Collecting current data keys ..");
-    $db = MDB2::connect($this->dsn);
-    $sql = "SELECT bnum, bib_lastupdate FROM locum_bib_items WHERE active = '1' ORDER BY bnum LIMIT $limit";
-    $init_result = $db->query($sql);
-    $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-    
-    while(!empty($init_bib_arr)) {
-      $num_children = $this->locum_config['harvest_config']['max_children'];
-      $num_to_process = count($init_bib_arr);
-      $bib_arr = array();
-      foreach ($init_bib_arr as $init_bib_arr_vals) {
-        $bib_arr[$init_bib_arr_vals['bnum']] = $init_bib_arr_vals['bib_lastupdate'];
-      }
-      $db->disconnect();
-      $this->putlog("Finished collecting data keys.");
 
-      if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
-      
-        $increment = ceil($num_to_process / $num_children);
-
-        $split_offset = 0;
-        for ($i = 0; $i < $num_children; ++$i) {
-          $end = $start + ($increment - 1);
-          $new_start = $end + 1;
-  
-          $pid = pcntl_fork();
-          if ($pid != -1) {
-            if ($pid) {
-              $this->putlog("Spawning child harvester to verify records of $start - $end. PID is $pid ..");
-            } else {
-              sleep(1);
-              ++$i;
-              if ($i == $num_children) { $end++; }
-              $bib_arr_sliced = array_slice($bib_arr, $split_offset, $increment, TRUE);
-              $num_bibs = count($bib_arr_sliced);
-              $tmp = $this->update_bib($bib_arr_sliced);
-              $updated = $tmp['updated'];
-              $retired = $tmp['retired'];
-              $this->putlog("Child process complete.  Checked $num_bibs records, updated $updated records, retired $retired records.", 2);
-              exit($i);
-            }
-          } else {
-            $this->putlog("Unable to spawn harvester: ($i)", 5);
-          }
-          $start = $new_start;
-          $split_offset = $split_offset + $increment;
-        }
-        if ($pid) {
-          while ($i > 0) {
-            pcntl_waitpid(-1, &$status);
-            $val = pcntl_wexitstatus($status);
-            --$i;
-          }
-          $this->putlog("Verification complete!", 3);
-        }
-      } else {
-        // TODO - Bib verification for those poor saps w/o pcntl
-      }
-      
-      $offset = $offset + $limit;
-      $this->putlog("Collecting current data keys starting at $offset");
-      $db = MDB2::connect($this->dsn);
-      $sql = "SELECT bnum, bib_lastupdate FROM locum_bib_items WHERE active = '1' ORDER BY bnum LIMIT $limit OFFSET $offset";
-      $init_result = $db->query($sql);
-      $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
+    $harvest_queue = $this->locum_config['harvest_config']['harvest_queue'];
+    $processed_queue = $this->locum_config['harvest_config']['processed_queue'];
+    while($bnum = $this->redis->rpoplpush($harvest_queue,$processed_queue)){
+      $result = $this->import_bibs($bnum, $bnum, TRUE);
     }
+
   }
 
   /**
    * Scans existing imported bibs for changes to the availability cache.
-   * 
+   *
    * @param boolean $quiet Run this function silently.  Default: TRUE
    */
   public function verify_status($quiet = TRUE) {
@@ -533,9 +470,9 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($quiet);
     }
-    
+
     require_once('locum-client.php');
-    
+
     $limit = 1000;
     $offset = 0;
 
@@ -545,7 +482,7 @@ class locum_server extends locum {
     $init_result = $db->query($sql);
     $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
     $locumclient = new locum_client;
-    
+
     while(!empty($init_bib_arr)) {
       $num_children = $this->locum_config['harvest_config']['max_children'];
       $num_to_process = count($init_bib_arr);
@@ -557,14 +494,14 @@ class locum_server extends locum {
       $this->putlog("Finished collecting data keys.");
 
       if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
-      
+
         $increment = ceil($num_to_process / $num_children);
-      
+
         $split_offset = 0;
         for ($i = 0; $i < $num_children; ++$i) {
           $end = $start + ($increment - 1);
           $new_start = $end + 1;
-  
+
           $pid = pcntl_fork();
           if ($pid != -1) {
             if ($pid) {
@@ -607,10 +544,10 @@ class locum_server extends locum {
       $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
     }
   }
-  
+
   /**
    * Scans existing imported bibs for changes to the syndetics links.
-   * 
+   *
    * @param boolean $quiet Run this function silently.  Default: TRUE
    */
   public function verify_syndetics($quiet = TRUE) {
@@ -618,16 +555,16 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($quiet);
     }
-    
+
     $limit = 1000;
     $offset = 0;
-    
+
     $this->putlog("Collecting current data keys ..");
     $db = MDB2::connect($this->dsn);
     $sql = "SELECT stdnum,bib_lastupdate FROM locum_bib_items WHERE stdnum IS NOT NULL ORDER BY bib_lastupdate DESC LIMIT $limit";
     $init_result = $db->query($sql);
     $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-    
+
     while(!empty($init_bib_arr)) {
       $num_children = $this->locum_config['harvest_config']['max_children'];
       $num_to_process = count($init_bib_arr);
@@ -639,14 +576,14 @@ class locum_server extends locum {
       $this->putlog("Finished collecting data keys.");
 
       if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
-      
+
         $increment = ceil($num_to_process / $num_children);
-      
+
         $split_offset = 0;
         for ($i = 0; $i < $num_children; ++$i) {
           $end = $start + ($increment - 1);
           $new_start = $end + 1;
-  
+
           $pid = pcntl_fork();
           if ($pid != -1) {
             if ($pid) {
@@ -701,7 +638,7 @@ class locum_server extends locum {
       $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
     }
   }
-  
+
   /**
    * Scans suppressed bibs for changes or weeds and makes the appropriate changes.
    * This is seperate as rescanning each night might not be wanted. Could be rolled in
@@ -713,16 +650,16 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($quiet);
     }
-    
+
     $limit = 1000;
     $offset = 0;
-    
+
     $this->putlog("Collecting current data keys ..");
     $db = MDB2::connect($this->dsn);
     $sql = "SELECT bnum, bib_lastupdate FROM locum_bib_items WHERE active = '0' ORDER BY bnum LIMIT $limit";
     $init_result = $db->query($sql);
     $init_bib_arr = $init_result->fetchAll(MDB2_FETCHMODE_ASSOC);
-    
+
     while(!empty($init_bib_arr)) {
       $num_children = $this->locum_config['harvest_config']['max_children'];
       $num_to_process = count($init_bib_arr);
@@ -734,14 +671,14 @@ class locum_server extends locum {
       $this->putlog("Finished collecting data keys.");
 
       if (extension_loaded('pcntl') && $this->locum_config['harvest_config']['harvest_with_children'] && ($num_to_process >= (2 * $num_children))) {
-      
+
         $increment = ceil($num_to_process / $num_children);
 
         $split_offset = 0;
         for ($i = 0; $i < $num_children; ++$i) {
           $end = $start + ($increment - 1);
           $new_start = $end + 1;
-  
+
           $pid = pcntl_fork();
           if ($pid != -1) {
             if ($pid) {
@@ -775,7 +712,7 @@ class locum_server extends locum {
       } else {
         // TODO - Bib verification for those poor saps w/o pcntl
       }
-      
+
       $offset = $offset + $limit;
       $this->putlog("Collecting current data keys starting at $offset");
       $db = MDB2::connect($this->dsn);
@@ -786,7 +723,7 @@ class locum_server extends locum {
   }
 
   /************ External Content Functions ************/
-  
+
 
   /**
    * Grabs the cover image URL for caching (much faster on the front-end to do it this way).
@@ -840,7 +777,7 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($stdnum, $api_key);
     }
-    
+
     $url =  'http://webservices.amazon.com/onca/xml?Service=AWSECommerceService';
     $url.=  "&AWSAccessKeyId=$api_key";
     $url.=  "&Operation=ItemLookup&IdType=ASIN&ItemId=$stdnum";
@@ -872,7 +809,7 @@ class locum_server extends locum {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($stdnum, $cust_id);
     }
-    
+
     $image_url = '';
     $url = 'http://www.syndetics.com/index.aspx?isbn=' . $stdnum . '/index.xml&client=' . $cust_id . '&type=xw10';
     $syn_dl = @file_get_contents($url);
@@ -887,13 +824,13 @@ class locum_server extends locum {
     }
     return $image_url;
   }
-  
+
   public function get_syndetics($isbn) {
     if (is_callable(array(__CLASS__ . '_hook', __FUNCTION__))) {
       eval('$hook = new ' . __CLASS__ . '_hook;');
       return $hook->{__FUNCTION__}($isbn);
     }
-    
+
     $valid_hits = array(
       'TOC'         => 'Table of Contents',
       'BNATOC'      => 'Table of Contents',
@@ -909,16 +846,16 @@ class locum_server extends locum {
       'KIRKREVIEW'  => 'Kirkus Book Review',
       'ANOTES'      => 'Author Notes'
     );
-    
+
     $cust_id = $this->locum_config['api_config']['syndetic_custid'];
-    if (!$cust_id) { 
+    if (!$cust_id) {
       return NULL;
     }
-    
+
     $db =& MDB2::connect($this->dsn);
     $res = $db->query("SELECT links FROM locum_syndetics_links WHERE isbn = '$isbn' AND updated > DATE_SUB(NOW(), INTERVAL 2 MONTH) LIMIT 1");
     $dbres = $res->fetchAll(MDB2_FETCHMODE_ASSOC);
-    
+
     if ($dbres[0]['links']) {
       $links = explode('|', $dbres[0]['links']);
     } else {
@@ -940,7 +877,7 @@ class locum_server extends locum {
         }
       }
     }
-    
+
     if ($links) {
       foreach ($links as $link) {
         $link_result[$valid_hits[$link]] = 'http://www.syndetics.com/index.aspx?isbn=' . $isbn . '/' . $link . '.html&client=' . $cust_id;
@@ -949,6 +886,6 @@ class locum_server extends locum {
     $db->disconnect();
     return $link_result;
   }
-  
+
 
 }
