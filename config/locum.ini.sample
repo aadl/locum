@@ -24,12 +24,14 @@ key_user                  = "username"
 ; harvest_with_children takes advantage of PHP's pcntl library to
 ; spawn multiple harvest processes. HIGHLY RECOMMENDED.
 ; max_children tells Locum how many child processes to spawn.
-; harvest_reach tells Locum how far beyond the last known bib to 
+; harvest_reach tells Locum how far beyond the last known bib to
 ; scan for new records during the maintenance run.
 [harvest_config]
 harvest_with_children     = TRUE
 max_children              = 10
 harvest_reach             = 1000
+harvest_queue             = "changed_bibs"
+processed_queue           = "harvested_bibs"
 
 ; This is where you configure your external data sources.  The built-in
 ; cover image functionality is very basic, and it's recommended that you
@@ -60,7 +62,7 @@ ils_version               = "2007"
 cache                     = TRUE
 cache_cutoff              = 60
 
-; This is where you provide a list of key-to-value pairs for material codes so, 
+; This is where you provide a list of key-to-value pairs for material codes so,
 ; for insteance, if the material code for books is "a", you would do:
 ; a = "Books"
 ; Do one-per-line.  Codes ARE case sensitive.
@@ -101,7 +103,7 @@ electronics               = "e"
 ; This section is used to define special groups of material formats that can be used
 ; in programatic logic further up the chain.  For example, "download" denotes a group of
 ; material formats that are downloaded.  "skip_avail" tells applications to skip availability
-; display for those items.  Custom entries can be added here as well if you need to 
+; display for those items.  Custom entries can be added here as well if you need to
 ; handle format groups in a certain way.
 [format_special]
 download                  = "x"
